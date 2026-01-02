@@ -1,4 +1,125 @@
-/* --- 基礎設定 (適用於電腦版) --- */
+/* ================= 🎨 1. CSS 變數定義 (加入透明度與毛玻璃設定) ================= */
+:root {
+  /* ☀️ 淺色模式 (Light Mode) */
+  /* 背景改為半透明，讓底圖透出來 */
+  --bg-body: rgba(255, 255, 255, 0.7); 
+  --bg-sidebar: rgba(255, 255, 255, 0.6);
+  --bg-content: rgba(255, 255, 255, 0.6);
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-input: rgba(255, 255, 255, 0.9);
+  
+  --text-main: #333333;
+  --text-sub: #666666;
+  --text-muted: #888888;
+  --border-color: rgba(224, 224, 224, 0.6);
+  
+  --primary: #007bff;
+  --primary-bg: rgba(0, 123, 255, 0.15);
+  
+  --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  --glass-blur: blur(12px); /* 毛玻璃模糊度 */
+
+  /* 行程卡片顏色 */
+  --bg-transport: linear-gradient(to right, rgba(240, 248, 255, 0.9), rgba(255, 255, 255, 0.9));
+  --bg-acc: linear-gradient(to right, rgba(255, 245, 240, 0.9), rgba(255, 255, 255, 0.9));
+  --bg-note: rgba(255, 253, 231, 0.95);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 🌙 深色模式 (Dark Mode) */
+    /* 背景改為深色半透明 */
+    --bg-body: rgba(18, 18, 18, 0.7);
+    --bg-sidebar: rgba(30, 30, 30, 0.6);
+    --bg-content: rgba(18, 18, 18, 0.6);
+    --bg-card: rgba(45, 45, 45, 0.85);
+    --bg-input: rgba(42, 42, 42, 0.9);
+    
+    --text-main: #e0e0e0;
+    --text-sub: #aaaaaa;
+    --text-muted: #777777;
+    --border-color: rgba(80, 80, 80, 0.5);
+    
+    --primary: #646cff;
+    --primary-bg: rgba(26, 59, 92, 0.4);
+    
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.3);
+
+    /* 行程卡片顏色 (深色適配) */
+    --bg-transport: linear-gradient(to right, rgba(13, 27, 42, 0.9), rgba(30, 30, 30, 0.9));
+    --bg-acc: linear-gradient(to right, rgba(45, 27, 20, 0.9), rgba(30, 30, 30, 0.9));
+    --bg-note: rgba(51, 51, 32, 0.95);
+  }
+}
+
+/* ================= 🖼️ 2. 全域背景圖片設定 ================= */
+.global-background {
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  z-index: -1; /* 確保在最底層 */
+  background-color: #0a0a12; /* 預設深色底 (當沒有圖片時) */
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  transition: background-image 0.5s ease;
+}
+
+/* 遮罩層：讓文字在花俏的背景圖上也能看清楚 */
+.dark-overlay {
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4); /* 40% 黑色遮罩 */
+  backdrop-filter: blur(3px); /* 輕微模糊背景圖，更有質感 */
+}
+
+/* 噪點質感：增加紙張/磨砂感 (可選) */
+.noise-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='4' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events: none; 
+  z-index: 1;
+}
+
+/* 右下角控制按鈕 (相機/重置) */
+.bg-control {
+  position: fixed; 
+  bottom: 20px; 
+  right: 20px; 
+  z-index: 100;
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px;
+}
+
+.bg-control label, .bg-control button {
+  width: 40px; 
+  height: 40px; 
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  cursor: pointer; 
+  color: white; 
+  font-size: 18px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+
+.bg-control label:hover, .bg-control button:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* ================= 🏗️ 3. 基礎設定 (保留您原有的設定) ================= */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -8,6 +129,9 @@
   /* ✨ 新增：確保寬度計算包含 padding，避免手機版出現橫向捲軸 */
   width: 100%;
   box-sizing: border-box; 
+  
+  /* ✨ 確保內容層背景透明，才看得到底圖 */
+  background-color: transparent;
 }
 
 .logo {
@@ -26,12 +150,8 @@
 }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -48,7 +168,7 @@
   color: #888;
 }
 
-/* --- 📱 手機與平板專用設定 (螢幕寬度小於 768px 時觸發) --- */
+/* ================= 📱 4. 手機與平板專用設定 (保留原有) ================= */
 @media (max-width: 768px) {
   #root {
     /* 手機版邊距縮小，釋放更多空間給內容 */

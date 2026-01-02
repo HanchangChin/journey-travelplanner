@@ -12,7 +12,7 @@ import {
 import CreateTrip from './CreateTrip'
 import TripDetails from './TripDetails'
 
-// 初始化 React Query 客戶端 (全域)
+// 初始化 React Query 客戶端
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// --- 元件：登入頁面 ---
+// --- 1. Login Page (加入毛玻璃效果) ---
 function Login({ session }) {
   const navigate = useNavigate()
   useEffect(() => {
@@ -33,7 +33,15 @@ function Login({ session }) {
   if (!session) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'transparent' }}>
-        <div style={{ width: '100%', maxWidth: '400px', padding: '40px', background: 'white', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+        {/* ✨ 修改：背景改為半透明白 + 毛玻璃，讓背景圖透出 */}
+        <div style={{ 
+            width: '100%', maxWidth: '400px', padding: '40px', 
+            background: 'rgba(255, 255, 255, 0.85)', // 半透明白
+            backdropFilter: 'blur(12px)', // 毛玻璃效果
+            borderRadius: '12px', 
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+        }}>
           <h2 style={{textAlign:'center', marginBottom:'20px', color:'#333'}}>🌍 歡迎回來</h2>
           <Auth 
             supabaseClient={supabase} 
@@ -48,17 +56,14 @@ function Login({ session }) {
   return null
 }
 
-// --- 元件：首頁 (具備離線能力、編輯功能、自動封存) ---
+// --- 2. Home Page (加入毛玻璃效果) ---
 function Home({ session }) {
   const [showCreateModal, setShowCreateModal] = useState(false)
-  
-  // ✨ 新增：用來儲存「正在編輯中」的行程資料
   const [editingTrip, setEditingTrip] = useState(null)
   
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  // 使用 React Query 抓取資料
   const { data: trips = [], isLoading, isRefetching } = useQuery({
     queryKey: ['trips', session?.user?.id],
     queryFn: async () => {
@@ -72,9 +77,8 @@ function Home({ session }) {
     enabled: !!session?.user?.id, 
   })
 
-  // 分類行程：日期過期會自動進入 pastTrips (即封存區)
   const today = new Date()
-  today.setHours(0, 0, 0, 0) // 設定為今天凌晨，確保比對準確
+  today.setHours(0, 0, 0, 0)
 
   const upcomingTrips = trips
     .filter(t => {
@@ -90,73 +94,52 @@ function Home({ session }) {
     })
     .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
 
-  // ✨ 開啟「新增」模式
-  const openCreateModal = () => {
-    setEditingTrip(null) // 清空編輯狀態
-    setShowCreateModal(true)
-  }
+  const openCreateModal = () => { setEditingTrip(null); setShowCreateModal(true) }
+  const openEditModal = (trip, e) => { e.stopPropagation(); setEditingTrip(trip); setShowCreateModal(true) }
 
-  // ✨ 開啟「編輯」模式 (點擊卡片上的筆時觸發)
-  const openEditModal = (trip, e) => {
-    e.stopPropagation() // 防止點擊觸發卡片跳轉
-    setEditingTrip(trip) // 設定要編輯的資料
-    setShowCreateModal(true)
-  }
+  const handleTripCreated = () => { queryClient.invalidateQueries(['trips']); setShowCreateModal(false); setEditingTrip(null) }
+  const handleTripDeleted = () => { queryClient.invalidateQueries(['trips']); setShowCreateModal(false); setEditingTrip(null) }
+  const handleLogout = async () => { await supabase.auth.signOut(); queryClient.clear() }
 
-  const handleTripCreated = () => {
-    queryClient.invalidateQueries(['trips']) // 重新整理資料
-    setShowCreateModal(false)
-    setEditingTrip(null)
-  }
-
-  // ✨ 處理刪除後的回調
-  const handleTripDeleted = () => {
-    queryClient.invalidateQueries(['trips'])
-    setShowCreateModal(false)
-    setEditingTrip(null)
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    queryClient.clear() 
-  }
-
-  // ✨ TripCard 修改：加入 onEdit 按鈕
+  // ✨ TripCard 修改：半透明深色背景 + 毛玻璃
   const TripCard = ({ trip, isPast }) => (
     <div 
       onClick={() => navigate(`/trip/${trip.id}`)}
       className="card"
       style={{ 
-        cursor: 'pointer', opacity: isPast ? 0.7 : 1,
+        cursor: 'pointer', 
+        opacity: isPast ? 0.8 : 1, // 封存的稍微透明一點
         borderLeft: isPast ? '4px solid #666' : '4px solid #646cff',
-        position: 'relative', // 為了定位編輯按鈕
-        backgroundColor: isPast ? '#2a2a2a' : '#1e1e1e', // 區分背景色
-        marginBottom: '15px'
+        position: 'relative',
+        // ✨ 關鍵修改：使用 rgba 黑色半透明
+        backgroundColor: isPast ? 'rgba(30, 30, 30, 0.6)' : 'rgba(40, 40, 40, 0.7)', 
+        backdropFilter: 'blur(10px)', // 毛玻璃
+        marginBottom: '15px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        border: '1px solid rgba(255,255,255,0.1)', // 微弱邊框增加質感
+        color: '#eee' // 強制文字顏色為淺色
       }}
     >
-      {/* ✨ 編輯按鈕 (右上角) */}
       <button 
         onClick={(e) => openEditModal(trip, e)}
         style={{
           position: 'absolute', top: '15px', right: '15px',
-          background: 'transparent', border: '1px solid #555', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.1)', border: '1px solid #666', borderRadius: '50%',
           width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', color: '#ccc', zIndex: 5
         }}
-        title="編輯行程設定"
-      >
-        ✎
-      </button>
+        title="編輯行程"
+      >✎</button>
 
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingRight: '40px'}}>
-        <h3 style={{ margin: 0, color: isPast ? '#aaa' : '#646cff', fontSize: '1.2rem' }}>{trip.title}</h3>
-        {isPast && <span style={{fontSize: '12px', background: '#444', color: '#ccc', padding: '3px 8px', borderRadius: '10px'}}>已封存</span>}
+        <h3 style={{ margin: 0, color: isPast ? '#aaa' : '#8ab4f8', fontSize: '1.2rem' }}>{trip.title}</h3>
+        {isPast && <span style={{fontSize: '12px', background: 'rgba(0,0,0,0.5)', color: '#ccc', padding: '3px 8px', borderRadius: '10px'}}>已封存</span>}
       </div>
-      <div style={{color: '#aaa', fontSize: '14px', display:'flex', gap:'15px', alignItems:'center'}}>
+      <div style={{color: isPast ? '#aaa' : '#ddd', fontSize: '14px', display:'flex', gap:'15px', alignItems:'center'}}>
         <span>📅 {trip.start_date} ~ {trip.end_date}</span>
-        <span style={{background:'#333', color: isPast ? '#aaa':'#646cff', padding:'2px 8px', borderRadius:'10px', fontSize:'12px'}}>{trip.trip_days?.length || 0} 天</span>
+        <span style={{background: 'rgba(255,255,255,0.1)', color: isPast ? '#aaa':'#8ab4f8', padding:'2px 8px', borderRadius:'10px', fontSize:'12px'}}>{trip.trip_days?.length || 0} 天</span>
       </div>
-      <div style={{marginTop: '12px', fontSize: '14px', color: '#ddd'}}>
+      <div style={{marginTop: '12px', fontSize: '14px', color: '#bbb'}}>
         📍 {trip.trip_destinations?.map(d => d.location_name).join(', ') || '尚未規劃地點'}
       </div>
     </div>
@@ -164,57 +147,52 @@ function Home({ session }) {
 
   return (
     <div className="container">
+      {/* 頂部資訊列：加入文字陰影，確保在亮色背景圖上也看得清楚 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
         <div>
-          <h1 style={{ margin: 0 }}>🌍 Journey Travel Planner</h1>
-          <p style={{ color: '#aaa', margin: '5px 0 0 0' }}>{session?.user?.email} 的旅程</p>
-          {isRefetching && <span style={{fontSize: '10px', color: '#646cff'}}>同步中...</span>}
+          <h1 style={{ margin: 0, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>🌍 Journey Planner</h1>
+          <p style={{ color: '#eee', margin: '5px 0 0 0', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>{session?.user?.email}</p>
+          {isRefetching && <span style={{fontSize: '10px', color: '#8ab4f8'}}>同步中...</span>}
         </div>
-        <button onClick={handleLogout} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #444', borderRadius: '6px', fontSize: '12px' }}>登出</button>
+        <button onClick={handleLogout} style={{ padding: '6px 12px', background: 'rgba(0,0,0,0.4)', border: '1px solid #888', borderRadius: '6px', fontSize: '12px', color: 'white', backdropFilter: 'blur(4px)' }}>登出</button>
       </div>
 
-      {/* 1. 即將出發 (進行中) */}
       <div style={{ marginBottom: '50px' }}>
-        <h3 style={{ borderBottom: '2px solid #646cff', paddingBottom: '10px', margin: '0 0 20px 0' }}>🛫 我的旅行 ({upcomingTrips.length})</h3>
+        <h3 style={{ borderBottom: '2px solid #646cff', paddingBottom: '10px', margin: '0 0 20px 0', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>🛫 我的旅行 ({upcomingTrips.length})</h3>
         {isLoading ? (
-          <p>讀取中...</p>
+          <p style={{color:'white'}}>讀取中...</p>
         ) : upcomingTrips.length > 0 ? (
           upcomingTrips.map(trip => <TripCard key={trip.id} trip={trip} isPast={false} />)
         ) : (
-          <div style={{ textAlign: 'center', padding: '60px', background: '#1e1e1e', borderRadius: '16px', color: '#888', border: '1px dashed #444' }}>還沒有即將出發的行程，點擊下方開始規劃！</div>
+          <div style={{ textAlign: 'center', padding: '60px', background: 'rgba(30,30,30,0.5)', borderRadius: '16px', color: '#ddd', border: '1px dashed #666', backdropFilter: 'blur(5px)' }}>還沒有即將出發的行程，點擊下方開始規劃！</div>
         )}
       </div>
 
-      {/* 2. 封存區 (自動移動) */}
       {pastTrips.length > 0 && (
-        <div style={{ marginBottom: '100px', opacity: 0.8 }}>
-          <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#888' }}>🗄️ 已封存的旅程 ({pastTrips.length})</h3>
-          <p style={{fontSize:'12px', color:'#666', marginBottom:'15px'}}>* 旅行結束後會自動移至此處</p>
+        <div style={{ marginBottom: '100px' }}>
+          <h3 style={{ borderBottom: '1px solid #888', paddingBottom: '10px', margin: '0 0 20px 0', color: '#ccc', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>🗄️ 已封存 ({pastTrips.length})</h3>
           {pastTrips.map(trip => <TripCard key={trip.id} trip={trip} isPast={true} />)}
         </div>
       )}
 
-      {/* 底部浮動按鈕 */}
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
-        <button onClick={openCreateModal} style={{ padding: '16px 40px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)', boxShadow: '0 8px 20px rgba(100, 108, 255, 0.3)' }}>✨ 開始規劃新旅行</button>
+        <button onClick={openCreateModal} style={{ padding: '16px 40px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)', boxShadow: '0 8px 25px rgba(0,0,0,0.3)', border:'none', color:'white', borderRadius:'30px' }}>✨ 開始規劃新旅行</button>
       </div>
 
-      {/* 新增/編輯 Modal */}
       {showCreateModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
-          <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '550px', position: 'relative', border: '1px solid #333', animation: 'fadeIn 0.3s ease' }}>
-            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', color: '#666' }}>×</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
+          {/* ✨ Modal 也是半透明毛玻璃 */}
+          <div style={{ background: 'rgba(30, 30, 30, 0.9)', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '550px', position: 'relative', border: '1px solid #444', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)' }}>
+            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', color: '#888' }}>×</button>
             <h2 style={{ marginTop: 0, textAlign: 'center', color: 'white' }}>
               {editingTrip ? '✏️ 編輯行程設定' : '✈️ 建立新旅程'}
             </h2>
-            <div style={{borderBottom:'1px solid #333', margin:'20px 0'}}></div>
-            
-            {/* ✨ 傳遞 tripToEdit 與相關 callback */}
+            <div style={{borderBottom:'1px solid #444', margin:'20px 0'}}></div>
             <CreateTrip 
               userId={session?.user?.id}
               tripToEdit={editingTrip} 
-              onTripCreated={handleTripCreated} // 建立/編輯成功後刷新
-              onTripDeleted={handleTripDeleted} // 刪除成功後刷新
+              onTripCreated={handleTripCreated} 
+              onTripDeleted={handleTripDeleted} 
             />
           </div>
         </div>
@@ -224,10 +202,11 @@ function Home({ session }) {
   )
 }
 
-// --- 主程式路由 ---
+// --- 3. 主程式路由 (整合背景) ---
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [bgImage, setBgImage] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -238,13 +217,114 @@ export default function App() {
       setSession(session)
       setLoading(false)
     })
+    
+    // 讀取背景圖
+    const savedBg = localStorage.getItem('custom_bg')
+    if (savedBg) setBgImage(savedBg)
+
     return () => subscription.unsubscribe()
   }, [])
+
+  const handleBgUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onloadend = () => {
+        const result = reader.result
+        setBgImage(result)
+        localStorage.setItem('custom_bg', result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleResetBg = () => {
+      if(window.confirm('確定要恢復預設流動背景嗎？')) {
+          setBgImage(null)
+          localStorage.removeItem('custom_bg')
+      }
+  }
 
   if (loading) return <div style={{height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', background:'#121212', color:'white'}}>載入中...</div>
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* ✨ 全域背景層 */}
+      <div className="global-background" style={{ backgroundImage: bgImage ? `url(${bgImage})` : 'none' }}>
+          {!bgImage && (
+              <>
+                  <div className="shape shape-1"></div>
+                  <div className="shape shape-2"></div>
+                  <div className="shape shape-3"></div>
+              </>
+          )}
+          <div className="noise-overlay"></div>
+          {/* ✨ 加深遮罩，確保文字可讀 */}
+          <div className="dark-overlay"></div>  
+      </div>
+
+      {session && (
+          <div className="bg-control">
+              <label htmlFor="bg-upload-input" title="更換背景圖片">📷</label>
+              <input id="bg-upload-input" type="file" accept="image/*" onChange={handleBgUpload} hidden />
+              {bgImage && <button onClick={handleResetBg} title="恢復預設背景">↺</button>}
+          </div>
+      )}
+
+      {/* ✨ CSS 設定 */}
+      <style>{`
+          .global-background {
+              position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+              z-index: -1;
+              background-color: #0a0a12; /* 深色底 */
+              background-size: cover;
+              background-position: center;
+              overflow: hidden;
+              transition: background-image 0.5s ease;
+          }
+          
+          /* 遮罩層：讓照片變暗，文字才看得清楚 */
+          .dark-overlay {
+              position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+              background: rgba(0, 0, 0, 0.4); /* 40% 黑色遮罩 */
+              backdrop-filter: blur(3px); /* 輕微模糊背景圖 */
+          }
+          
+          .noise-overlay {
+              position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+              background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='4' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+              pointer-events: none; z-index: 1;
+          }
+
+          .bg-control {
+              position: fixed; bottom: 20px; right: 20px; z-index: 100;
+              display: flex; flex-direction: column; gap: 10px;
+          }
+          .bg-control label, .bg-control button {
+              width: 40px; height: 40px; border-radius: 50%;
+              background: rgba(255,255,255,0.2);
+              border: 1px solid rgba(255,255,255,0.3);
+              backdrop-filter: blur(10px);
+              display: flex; align-items: center; justify-content: center;
+              cursor: pointer; color: white; font-size: 18px;
+              box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+              transition: transform 0.2s;
+          }
+          .bg-control label:hover, .bg-control button:hover { transform: scale(1.1); background: rgba(255,255,255,0.4); }
+
+          .shape {
+              position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6;
+              animation: float 20s infinite alternate;
+          }
+          .shape-1 { width: 60vw; height: 60vw; top: -10%; left: -10%; background: radial-gradient(circle, #4f46e5, transparent); }
+          .shape-2 { width: 50vw; height: 50vw; bottom: -10%; right: -10%; background: radial-gradient(circle, #ec4899, transparent); animation-delay: -5s; }
+          .shape-3 { width: 40vw; height: 40vw; bottom: 20%; left: 20%; background: radial-gradient(circle, #06b6d4, transparent); animation-delay: -10s; }
+          
+          @keyframes float { 
+              0% { transform: translate(0, 0) scale(1); } 
+              100% { transform: translate(10%, 10%) scale(1.1); } 
+          }
+      `}</style>
+
       <BrowserRouter>
         <Routes>
           <Route path="/" element={!session ? <Navigate to="/login" /> : <Home session={session} />} />
