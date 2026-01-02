@@ -31,9 +31,6 @@ export default function TripDetails() {
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
-  // ✨ 關鍵設定：PointerSensor 的 activationConstraint 
-  // 這讓手機使用者可以「滑動頁面」而不會誤觸「拖曳行程」
-  // 必須按住移動 5px 以上才會開始拖曳
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -166,11 +163,13 @@ export default function TripDetails() {
     }
   };
 
-  if (isLoading && !trip) return <div style={{padding:'20px', textAlign:'center'}}>載入行程中...</div>
-  if (isError) return <div style={{padding:'20px', textAlign:'center', color:'red'}}>載入失敗，請檢查網路連線。</div>
+  if (isLoading && !trip) return <div className="loading-state">載入行程中...</div>
+  if (isError) return <div className="error-state">載入失敗，請檢查網路連線。</div>
   if (!trip) return null
 
-  // --- Card Components (不變) ---
+  // --- Card Components ---
+
+  // 🔥 1. TransportCard
   const TransportCard = ({ item }) => {
     const t = item.transport_details || {};
     const travelers = t.travelers || [];
@@ -181,94 +180,119 @@ export default function TripDetails() {
 
     if (isSimpleView) {
       return (
-        <div onClick={() => openEditItemModal(item)} className="card-hover" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8px 15px', marginBottom: '10px', borderRadius: '20px', background: '#f3f4f6', border: '1px solid #e5e7eb', color: '#4b5563', fontSize: '13px', fontWeight: '500', gap: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ fontSize: '14px' }}>🚌</span><span>{t.duration_text || '移動'}</span></span>
-          <span style={{ color: '#d1d5db' }}>|</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#374151' }}><span>{item.location_name?.split(' ')[0] || '起點'}</span><span style={{ color: '#9ca3af', fontSize: '10px' }}>➤</span><span>{t.arrival_location?.split(' ')[0] || '終點'}</span></span>
+        <div onClick={() => openEditItemModal(item)} className="card simple-card">
+          <div className="simple-card-content">
+            <span className="icon-text"><span className="icon">🚌</span><span>{t.duration_text || '移動'}</span></span>
+            <span className="separator">|</span>
+            <span className="location-flow"><span>{item.location_name?.split(' ')[0] || '起點'}</span><span className="arrow">➤</span><span>{t.arrival_location?.split(' ')[0] || '終點'}</span></span>
+          </div>
         </div>
       )
     }
     return (
-      <div onClick={() => openEditItemModal(item)} className="card-hover" style={{ border: '1px solid #b3d7ff', borderRadius: '8px', marginBottom: '10px', background: 'linear-gradient(to right, #f0f8ff, #ffffff)', boxShadow: '0 3px 6px rgba(0,123,255,0.1)', overflow: 'hidden' }}>
-        <div style={{ background: (isCarMode || isPublic) ? '#28a745' : '#007bff', color: 'white', padding: '8px 15px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+      <div onClick={() => openEditItemModal(item)} className="card transport-card">
+        <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
           <span>{isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}</span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
         </div>
-        <div style={{ padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ textAlign: 'center', flex: 1 }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>{formatDisplayTime(isArrivalCard ? t.original_start_time : item.start_time)}{isArrivalCard && <sup style={{ color: '#d9534f' }}>-1</sup>}</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '4px' }}>{item.location_name?.split(' ')[0] || '出發地'}</div>
+        <div className="card-body transport-body">
+          <div className="time-col">
+            <div className="time-text">{formatDisplayTime(isArrivalCard ? t.original_start_time : item.start_time)}{isArrivalCard && <sup className="offset-text">-1</sup>}</div>
+            <div className="place-text">{item.location_name?.split(' ')[0] || '出發地'}</div>
+            <div className="terminal-text">{t.departure_terminal || ''}</div>
           </div>
-          <div style={{ flex: 1, textAlign: 'center', color: '#999', fontSize: '12px' }}>
-            <div style={{fontWeight:'bold', color: (isCarMode||isPublic) ? '#28a745' : '#007bff'}}>{t.duration_text || '--'}</div>
-            <div style={{ fontSize: '20px', color: '#ccc' }}>────────➝</div>
+          <div className="duration-col">
+            <div className={`duration-text ${isCarMode||isPublic ? 'text-green' : 'text-blue'}`}>{t.duration_text || '--'}</div>
+            <div className="arrow-graphic">────────➝</div>
+            {(isCarMode||isPublic) && t.distance_text && <div className="sub-info">📏 {t.distance_text}</div>}
+            {(isCarMode||isPublic) && t.buffer_time > 0 && <div className="sub-info text-red">+Buffer {t.buffer_time}m</div>}
+            {item.cost > 0 && <div className="cost-text">${item.cost}</div>}
           </div>
-          <div style={{ textAlign: 'center', flex: 1 }}>
-             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>{formatDisplayTime(isArrivalCard ? item.start_time : item.end_time)}{!isArrivalCard && t.arrival_day_offset > 0 && <sup style={{ color: '#d9534f' }}>+{t.arrival_day_offset}</sup>}</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '4px' }}>{t.arrival_location?.split(' ')[0] || '抵達地'}</div>
+          <div className="time-col">
+             <div className="time-text">{formatDisplayTime(isArrivalCard ? item.start_time : item.end_time)}{!isArrivalCard && t.arrival_day_offset > 0 && <sup className="offset-text">+{t.arrival_day_offset}</sup>}</div>
+            <div className="place-text">{t.arrival_location?.split(' ')[0] || '抵達地'}</div>
+            <div className="terminal-text">{t.arrival_terminal || ''}</div>
           </div>
         </div>
       </div>
     )
   }
 
+  // 🔥 2. AccommodationCard
   const AccommodationCard = ({ item }) => {
     const acc = item.accommodation_details || {};
     const isStay = acc.is_generated_stay; 
     return (
-      <div onClick={() => openEditItemModal(item)} className="card-hover" style={{ border: '1px solid #ffd6c2', borderRadius: '8px', marginBottom: '10px', background: isStay ? '#fffcf9' : 'linear-gradient(to right, #fff5f0, #ffffff)', boxShadow: '0 3px 6px rgba(230, 81, 0, 0.1)', overflow: 'hidden' }}>
-        <div style={{ background: '#ff7043', color: 'white', padding: '8px 15px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+      <div onClick={() => openEditItemModal(item)} className={`card accommodation-card ${isStay ? 'is-stay' : ''}`}>
+        <div className="card-header header-orange">
           <span>🛏️ {isStay ? '續住：' : '入住：'} {item.name.replace('🏨 住宿: ', '')}</span>
           <span>{acc.agent || '住宿'}</span>
         </div>
-        <div style={{ padding: '15px' }}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+        <div className="card-body">
+            <div className="acc-info-row">
                 <div>
-                    <div style={{fontSize:'16px', fontWeight:'bold', color:'#d84315'}}>{item.location_name}</div>
-                    <div style={{fontSize:'13px', color:'#666', marginTop:'4px'}}>📍 {item.address}</div>
+                    <div className="acc-name">{item.location_name}</div>
+                    <div className="acc-address">📍 {item.address}</div>
+                    {acc.phone && <div className="acc-phone">📞 {acc.phone}</div>}
                 </div>
-                <div style={{textAlign:'right'}}>
-                    {item.cost > 0 && <div style={{fontSize:'16px', fontWeight:'bold', color:'#d84315'}}>{acc.currency} ${item.cost}</div>}
+                <div className="acc-cost-col">
+                    {item.cost > 0 && <div className="acc-cost">{acc.currency} ${item.cost}</div>}
+                    <div className="acc-status">{acc.is_paid ? <span className="tag tag-green">已付款</span> : <span className="tag tag-red">尚未付款</span>}</div>
                 </div>
             </div>
-            {item.notes && <div style={{marginTop:'10px', fontSize:'13px', color:'#888'}}>📝 {item.notes}</div>}
+            {!isStay && (
+                <div className="acc-dates">
+                    <div><span className="label-orange">📥 Check-in:</span> {acc.checkin_date} {formatDisplayTime(item.start_time)}</div>
+                    <div><span className="label-orange">📤 Check-out:</span> {acc.checkout_date} {formatDisplayTime(item.end_time)}</div>
+                </div>
+            )}
+            {item.notes && <div className="card-notes">📝 {item.notes}</div>}
         </div>
       </div>
     )
   }
 
+  // 🔥 3. GeneralCard
   const GeneralCard = ({ item }) => {
     const duration = calculateDuration(item.start_time, item.end_time); 
     const getCategoryIcon = (cat) => { switch(cat) { case 'food': return '🍴'; case 'accommodation': return '🛏️'; default: return '🎡'; } }
     const todayHours = getTodayOpeningHours(selectedDay.day_date, item.opening_hours);
     return (
-      <li onClick={() => openEditItemModal(item)} className="card-hover" style={{ padding: '15px', border: '1px solid #e0e0e0', marginBottom: '10px', borderRadius: '8px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-          <div style={{ fontSize: '28px' }}>{getCategoryIcon(item.category)}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#333' }}>{item.name}</div>
-            {todayHours && <div style={{ fontSize: '12px', color: '#d9534f', background: '#fff5f5', padding: '2px 6px', borderRadius: '4px', marginTop:'4px', display:'inline-block', border:'1px solid #ffcccc' }}>🕒 {todayHours}</div>}
-            {item.notes && <div style={{ fontSize: '13px', color: '#888', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' }}>📝 {item.notes}</div>}
+      <li onClick={() => openEditItemModal(item)} className="card general-card">
+        <div className="general-left">
+          <div className="category-icon">{getCategoryIcon(item.category)}</div>
+          <div>
+            <div className="general-name">{item.name}</div>
+            {item.address && <div className="general-sub">📍 {item.address}</div>}
+            {item.phone && <div className="general-sub">📞 {item.phone}</div>}
+            {todayHours && <div className="opening-hours-tag">🕒 {todayHours}</div>}
+            {item.notes && <div className="general-sub">📝 {item.notes}</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '80px', justifyContent: 'flex-end' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>{formatDisplayTime(item.start_time) || '--:--'}</div>
+        <div className="general-right">
+          <div className="time-display">{formatDisplayTime(item.start_time) || '--:--'}</div>
+          <div className="duration-display">
+            {duration && <span className="duration-tag">{duration}</span>}
+            <span className="arrow-small">──➝</span>
+          </div>
+          <div className="time-display">{formatDisplayTime(item.end_time) || '--:--'}</div>
         </div>
       </li>
     )
   }
 
+  // 🔥 4. NoteCard
   const NoteCard = ({ item }) => {
       return (
-          <div onClick={() => openEditItemModal(item)} className="card-hover" style={{ background: '#fffde7', border: '1px solid #fff59d', borderRadius: '8px', padding: '15px', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-              <div style={{fontWeight:'bold', color:'#fbc02d', marginBottom:'5px', fontSize:'1.1em'}}>📝 {item.name}</div>
-              {item.notes && <div style={{whiteSpace:'pre-wrap', fontSize:'14px', color:'#555', marginBottom: item.attachment_url ? '10px' : '0'}}>{item.notes}</div>}
+          <div onClick={() => openEditItemModal(item)} className="card note-card">
+              <div className="note-title">📝 {item.name}</div>
+              {item.notes && <div className="note-content">{item.notes}</div>}
               {item.attachment_url && (
-                  <div style={{marginTop:'5px'}}>
-                      <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'#fff', border:'1px solid #ddd', borderRadius:'20px', textDecoration:'none', color:'#333', fontSize:'13px', boxShadow:'0 1px 2px rgba(0,0,0,0.05)' }}>
-                          <span style={{fontSize:'16px'}}>{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
+                  <div className="note-attachment">
+                      <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="attachment-link">
+                          <span className="attach-icon">{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
                           <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
-                          <span style={{color:'#999', fontSize:'10px'}}>↗</span>
+                          <span className="attach-arrow">↗</span>
                       </a>
                   </div>
               )}
@@ -279,16 +303,41 @@ export default function TripDetails() {
   const currentDayItems = items.filter(item => item.trip_day_id === selectedDay?.id);
 
   return (
-    <div className="container">
+    <div className="container trip-details-page">
       {/* ✨ CSS 樣式定義：處理響應式佈局 (Mobile vs Desktop) */}
       <style>{`
         .layout-container { display: flex; gap: 20px; min-height: 600px; }
         .sidebar { width: 220px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; max-height: 80vh; position: sticky; top: 20px; }
         .content-area { flex: 1; padding-left: 10px; }
-        .day-item { padding: 12px 10px; cursor: pointer; margin-bottom: 5px; border-radius: 8px; transition: all 0.2s; }
+        
+        /* ⬇️ ✨ 修改後的樣式：縮小 Day Item 的尺寸 */
+        .day-item { 
+            /* 極致壓縮內距 */
+            padding: 4px 6px; 
+            cursor: pointer; 
+            margin-bottom: 5px; 
+            border-radius: 8px; 
+            transition: all 0.2s; 
+        }
         .day-item:hover { background-color: #f0f0f0; }
         .card-hover { cursor: pointer; transition: transform 0.1s; }
         .card-hover:active { transform: scale(0.98); }
+
+        /* ⬇️ ✨ 修改後的 Day Header：縮小高度 */
+        .day-header { 
+            margin-bottom: 10px; /* 減少下方留白 */
+            padding: 8px 12px;   /* 減少內距 */
+            background: var(--header-bg-day); 
+            border-radius: 10px; 
+            border: 1px solid var(--border-color); 
+        }
+        .day-title-input { 
+            font-size: 1rem; /* 縮小輸入框字體 */
+            padding: 4px 8px; /* 縮小輸入框內距 */
+            border-radius: 6px; 
+            flex: 1; 
+            min-width: 0; 
+        }
 
         /* 📱 手機/平板模式 */
         @media (max-width: 768px) {
@@ -298,7 +347,7 @@ export default function TripDetails() {
             border-right: none; 
             border-bottom: 1px solid #eee; 
             padding-right: 0; 
-            padding-bottom: 10px; 
+            padding-bottom: 2px; /* 極致壓縮底部留白 */
             display: flex; /* 變成橫向排列 */
             overflow-x: auto; /* 支援橫向捲動 */
             white-space: nowrap;
@@ -306,14 +355,14 @@ export default function TripDetails() {
             top: 0;
             max-height: auto;
           }
-          .content-area { padding-left: 0; margin-top: 20px; }
+          .content-area { padding-left: 0; margin-top: 10px; /* 減少上方留白 */ }
           .day-item { 
             flex: 0 0 auto; /* 防止縮小 */
             width: auto; 
-            min-width: 100px; 
+            min-width: 60px; /* 極致縮小最小寬度 */
             text-align: center;
             margin-bottom: 0;
-            margin-right: 10px;
+            margin-right: 5px; /* 減少間距 */
             border-left: none !important;
             border-bottom: 4px solid transparent;
           }
@@ -342,8 +391,8 @@ export default function TripDetails() {
         <Link to="/" style={{ textDecoration: 'none', color: '#666', display:'inline-block', marginBottom:'10px' }}>← 返回列表</Link>
         <button onClick={() => setShowSettings(true)} style={{ padding: '8px 15px', background: '#f0f0f0', border: '1px solid #ccc', borderRadius:'20px', cursor:'pointer' }}>⚙️ 旅行設定</button>
       </div>
-      <div style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px' }}>
-        <h1 style={{ margin: '0 0 10px 0', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>{trip.title}</h1>
+      <div style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
+        <h1 style={{ margin: '0 0 5px 0', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>{trip.title}</h1>
         <div style={{ color: '#666', fontSize: '14px', display:'flex', flexWrap: 'wrap', gap: '15px' }}>
           <span>📅 {trip.start_date} ~ {trip.end_date}</span>
           <span>💰 預算: ${trip.budget_goal}</span>
@@ -369,8 +418,9 @@ export default function TripDetails() {
                 borderBottom: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent' // 手機版生效
               }}
             >
-              <div style={{ fontWeight: 'bold', color: '#333' }}>Day {day.day_number} {day.title ? <span style={{marginLeft:'5px'}}>{day.title}</span> : ''}</div>
-              <div style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
+              {/* ⬇️ ✨ 極致縮小字體 */}
+              <div style={{ fontWeight: 'bold', color: '#333', fontSize: '12px', lineHeight:'1.2' }}>Day {day.day_number} {day.title ? <span style={{marginLeft:'3px'}}>{day.title}</span> : ''}</div>
+              <div style={{ fontSize: '10px', color: '#888', marginTop: '1px' }}>{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
             </div>
           ))}
         </div>
@@ -379,11 +429,12 @@ export default function TripDetails() {
         <div className="content-area">
           {selectedDay && (
             <>
-              <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '10px' }}>
-                <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px', fontWeight: 'bold' }}>{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>Day {selectedDay.day_number}</h2>
-                  <input type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" style={{ fontSize: '1.2em', padding: '5px 10px', border: '1px solid #ccc', borderRadius: '6px', flex: 1, minWidth: 0 }} />
+              {/* ⬇️ ✨ 已縮小的 Day Header */}
+              <div className="day-header">
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: 'bold' }}>{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '1.2rem' }}>Day {selectedDay.day_number}</h2>
+                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" />
                 </div>
               </div>
               

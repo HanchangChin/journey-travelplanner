@@ -117,7 +117,7 @@ export default function CreateTrip({ onTripCreated, userId, tripToEdit = null, o
         for (let i = 0; i < diffDays; i++) {
           const currentDayDate = new Date(start)
           currentDayDate.setDate(start.getDate() + i)
-          dayRecords.push({ trip_id: tripId, day_number: i + 1, day_date: currentDayDate.toISOString().split('T')[0], title: `Day ${i + 1}` })
+          dayRecords.push({ trip_id: tripId, day_number: i + 1, day_date: currentDayDate.toISOString().split('T')[0], title: `` })
         }
         
         const { error: daysError } = await supabase.from('trip_days').insert(dayRecords)
@@ -293,3 +293,6 @@ export default function CreateTrip({ onTripCreated, userId, tripToEdit = null, o
     </div>
   )
 }
+
+
+

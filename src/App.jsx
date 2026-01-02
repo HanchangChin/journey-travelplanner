@@ -8,7 +8,7 @@ import {
   QueryClientProvider, 
   useQuery, 
   useQueryClient 
-} from '@tanstack/react-query' // 導入 React Query
+} from '@tanstack/react-query'
 import CreateTrip from './CreateTrip'
 import TripDetails from './TripDetails'
 
@@ -16,9 +16,9 @@ import TripDetails from './TripDetails'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 分鐘內視為資料新鮮，不重複抓取
-      gcTime: 1000 * 60 * 60 * 24, // 離線快取保留 24 小時
-      retry: 2, // 網路失敗自動重試 2 次
+      staleTime: 1000 * 60 * 5, 
+      gcTime: 1000 * 60 * 60 * 24, 
+      retry: 2, 
     },
   },
 })
@@ -48,13 +48,17 @@ function Login({ session }) {
   return null
 }
 
-// --- 元件：首頁 (具備離線能力) ---
+// --- 元件：首頁 (具備離線能力、編輯功能、自動封存) ---
 function Home({ session }) {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  // ✨ 新增：用來儲存「正在編輯中」的行程資料
+  const [editingTrip, setEditingTrip] = useState(null)
+  
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  // 使用 React Query 抓取資料 (自動處理快取與離線顯示)
+  // 使用 React Query 抓取資料
   const { data: trips = [], isLoading, isRefetching } = useQuery({
     queryKey: ['trips', session?.user?.id],
     queryFn: async () => {
@@ -65,45 +69,92 @@ function Home({ session }) {
       if (error) throw error
       return data
     },
-    enabled: !!session?.user?.id, // 只有登入才執行
+    enabled: !!session?.user?.id, 
   })
 
-  // 分類行程 (從快取的 trips 中分類)
-  const today = new Date().setHours(0, 0, 0, 0)
+  // 分類行程：日期過期會自動進入 pastTrips (即封存區)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // 設定為今天凌晨，確保比對準確
+
   const upcomingTrips = trips
-    .filter(t => (t.end_date ? new Date(t.end_date) : new Date(t.start_date)) >= today)
+    .filter(t => {
+      const end = t.end_date ? new Date(t.end_date) : new Date(t.start_date)
+      return end >= today
+    })
     .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
   
   const pastTrips = trips
-    .filter(t => (t.end_date ? new Date(t.end_date) : new Date(t.start_date)) < today)
+    .filter(t => {
+      const end = t.end_date ? new Date(t.end_date) : new Date(t.start_date)
+      return end < today
+    })
     .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+
+  // ✨ 開啟「新增」模式
+  const openCreateModal = () => {
+    setEditingTrip(null) // 清空編輯狀態
+    setShowCreateModal(true)
+  }
+
+  // ✨ 開啟「編輯」模式 (點擊卡片上的筆時觸發)
+  const openEditModal = (trip, e) => {
+    e.stopPropagation() // 防止點擊觸發卡片跳轉
+    setEditingTrip(trip) // 設定要編輯的資料
+    setShowCreateModal(true)
+  }
 
   const handleTripCreated = () => {
     queryClient.invalidateQueries(['trips']) // 重新整理資料
     setShowCreateModal(false)
+    setEditingTrip(null)
+  }
+
+  // ✨ 處理刪除後的回調
+  const handleTripDeleted = () => {
+    queryClient.invalidateQueries(['trips'])
+    setShowCreateModal(false)
+    setEditingTrip(null)
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    queryClient.clear() // 清除快取
+    queryClient.clear() 
   }
 
+  // ✨ TripCard 修改：加入 onEdit 按鈕
   const TripCard = ({ trip, isPast }) => (
     <div 
       onClick={() => navigate(`/trip/${trip.id}`)}
       className="card"
       style={{ 
-        cursor: 'pointer', opacity: isPast ? 0.6 : 1,
-        borderLeft: isPast ? '4px solid #666' : '4px solid #646cff'
+        cursor: 'pointer', opacity: isPast ? 0.7 : 1,
+        borderLeft: isPast ? '4px solid #666' : '4px solid #646cff',
+        position: 'relative', // 為了定位編輯按鈕
+        backgroundColor: isPast ? '#2a2a2a' : '#1e1e1e', // 區分背景色
+        marginBottom: '15px'
       }}
     >
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+      {/* ✨ 編輯按鈕 (右上角) */}
+      <button 
+        onClick={(e) => openEditModal(trip, e)}
+        style={{
+          position: 'absolute', top: '15px', right: '15px',
+          background: 'transparent', border: '1px solid #555', borderRadius: '50%',
+          width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', color: '#ccc', zIndex: 5
+        }}
+        title="編輯行程設定"
+      >
+        ✎
+      </button>
+
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingRight: '40px'}}>
         <h3 style={{ margin: 0, color: isPast ? '#aaa' : '#646cff', fontSize: '1.2rem' }}>{trip.title}</h3>
         {isPast && <span style={{fontSize: '12px', background: '#444', color: '#ccc', padding: '3px 8px', borderRadius: '10px'}}>已封存</span>}
       </div>
       <div style={{color: '#aaa', fontSize: '14px', display:'flex', gap:'15px', alignItems:'center'}}>
         <span>📅 {trip.start_date} ~ {trip.end_date}</span>
-        <span style={{background:'#2a2a2a', color:'#646cff', padding:'2px 8px', borderRadius:'10px', fontSize:'12px'}}>{trip.trip_days?.length || 0} 天</span>
+        <span style={{background:'#333', color: isPast ? '#aaa':'#646cff', padding:'2px 8px', borderRadius:'10px', fontSize:'12px'}}>{trip.trip_days?.length || 0} 天</span>
       </div>
       <div style={{marginTop: '12px', fontSize: '14px', color: '#ddd'}}>
         📍 {trip.trip_destinations?.map(d => d.location_name).join(', ') || '尚未規劃地點'}
@@ -122,6 +173,7 @@ function Home({ session }) {
         <button onClick={handleLogout} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #444', borderRadius: '6px', fontSize: '12px' }}>登出</button>
       </div>
 
+      {/* 1. 即將出發 (進行中) */}
       <div style={{ marginBottom: '50px' }}>
         <h3 style={{ borderBottom: '2px solid #646cff', paddingBottom: '10px', margin: '0 0 20px 0' }}>🛫 我的旅行 ({upcomingTrips.length})</h3>
         {isLoading ? (
@@ -133,24 +185,37 @@ function Home({ session }) {
         )}
       </div>
 
+      {/* 2. 封存區 (自動移動) */}
       {pastTrips.length > 0 && (
-        <div style={{ marginBottom: '100px' }}>
-          <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#888' }}>🗄️ 過去旅行 ({pastTrips.length})</h3>
+        <div style={{ marginBottom: '100px', opacity: 0.8 }}>
+          <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#888' }}>🗄️ 已封存的旅程 ({pastTrips.length})</h3>
+          <p style={{fontSize:'12px', color:'#666', marginBottom:'15px'}}>* 旅行結束後會自動移至此處</p>
           {pastTrips.map(trip => <TripCard key={trip.id} trip={trip} isPast={true} />)}
         </div>
       )}
 
+      {/* 底部浮動按鈕 */}
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
-        <button onClick={() => setShowCreateModal(true)} style={{ padding: '16px 40px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)', boxShadow: '0 8px 20px rgba(100, 108, 255, 0.3)' }}>✨ 開始規劃新旅行</button>
+        <button onClick={openCreateModal} style={{ padding: '16px 40px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)', boxShadow: '0 8px 20px rgba(100, 108, 255, 0.3)' }}>✨ 開始規劃新旅行</button>
       </div>
 
+      {/* 新增/編輯 Modal */}
       {showCreateModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
           <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '550px', position: 'relative', border: '1px solid #333', animation: 'fadeIn 0.3s ease' }}>
             <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', color: '#666' }}>×</button>
-            <h2 style={{ marginTop: 0, textAlign: 'center', color: 'white' }}>✈️ 建立新旅程</h2>
+            <h2 style={{ marginTop: 0, textAlign: 'center', color: 'white' }}>
+              {editingTrip ? '✏️ 編輯行程設定' : '✈️ 建立新旅程'}
+            </h2>
             <div style={{borderBottom:'1px solid #333', margin:'20px 0'}}></div>
-            <CreateTrip onTripCreated={handleTripCreated} userId={session?.user?.id} />
+            
+            {/* ✨ 傳遞 tripToEdit 與相關 callback */}
+            <CreateTrip 
+              userId={session?.user?.id}
+              tripToEdit={editingTrip} 
+              onTripCreated={handleTripCreated} // 建立/編輯成功後刷新
+              onTripDeleted={handleTripDeleted} // 刪除成功後刷新
+            />
           </div>
         </div>
       )}
@@ -159,7 +224,7 @@ function Home({ session }) {
   )
 }
 
-// --- 主程式路由 (進入點加入 Provider) ---
+// --- 主程式路由 ---
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
