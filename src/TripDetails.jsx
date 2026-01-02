@@ -304,42 +304,49 @@ export default function TripDetails() {
 
   return (
     <div className="container trip-details-page">
-      {/* ✨ CSS 樣式定義：處理響應式佈局 (Mobile vs Desktop) */}
+      {/* ✨ CSS 樣式定義：RWD 分層處理 */}
       <style>{`
+        /* --- 1. 基礎樣式 (適用於 電腦/平板) --- */
         .layout-container { display: flex; gap: 20px; min-height: 600px; }
-        .sidebar { width: 220px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; max-height: 80vh; position: sticky; top: 20px; }
+        .sidebar { 
+            width: 220px; border-right: 1px solid #eee; padding-right: 10px; 
+            overflow-y: auto; max-height: 80vh; position: sticky; top: 20px; 
+        }
         .content-area { flex: 1; padding-left: 10px; }
         
-        /* ⬇️ ✨ 修改後的樣式：縮小 Day Item 的尺寸 */
+        /* 寬鬆的電腦版設定 */
         .day-item { 
-            /* 極致壓縮內距 */
-            padding: 4px 6px; 
+            padding: 12px 10px; 
             cursor: pointer; 
             margin-bottom: 5px; 
             border-radius: 8px; 
             transition: all 0.2s; 
         }
-        .day-item:hover { background-color: #f0f0f0; }
-        .card-hover { cursor: pointer; transition: transform 0.1s; }
-        .card-hover:active { transform: scale(0.98); }
+        .day-item-text-title { font-weight: bold; color: #333; font-size: 1rem; }
+        .day-item-text-date { font-size: 13px; color: #888; margin-top: 2px; }
 
-        /* ⬇️ ✨ 修改後的 Day Header：縮小高度 */
+        /* 寬鬆的電腦版 Day Header */
         .day-header { 
-            margin-bottom: 10px; /* 減少下方留白 */
-            padding: 8px 12px;   /* 減少內距 */
+            margin-bottom: 20px; 
+            padding: 15px; 
             background: var(--header-bg-day); 
             border-radius: 10px; 
             border: 1px solid var(--border-color); 
         }
         .day-title-input { 
-            font-size: 1rem; /* 縮小輸入框字體 */
-            padding: 4px 8px; /* 縮小輸入框內距 */
+            font-size: 1.5rem; 
+            padding: 8px 12px; 
             border-radius: 6px; 
-            flex: 1; 
-            min-width: 0; 
+            flex: 1; min-width: 0; 
         }
+        .day-header-date { font-size: 14px; color: #666; margin-bottom: 8px; font-weight: bold; }
+        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.5rem; }
 
-        /* 📱 手機/平板模式 */
+        .day-item:hover { background-color: #f0f0f0; }
+        .card-hover { cursor: pointer; transition: transform 0.1s; }
+        .card-hover:active { transform: scale(0.98); }
+
+        /* --- 2. 手機版樣式 (Max-width: 768px) - 縮小 50% --- */
         @media (max-width: 768px) {
           .layout-container { flex-direction: column; }
           .sidebar { 
@@ -355,17 +362,33 @@ export default function TripDetails() {
             top: 0;
             max-height: auto;
           }
-          .content-area { padding-left: 0; margin-top: 10px; /* 減少上方留白 */ }
+          .content-area { padding-left: 0; margin-top: 10px; }
+          
+          /* ⬇️ ✨ 手機版 Day Item (極致縮小) */
           .day-item { 
-            flex: 0 0 auto; /* 防止縮小 */
+            flex: 0 0 auto;
             width: auto; 
-            min-width: 60px; /* 極致縮小最小寬度 */
+            min-width: 60px; 
             text-align: center;
             margin-bottom: 0;
-            margin-right: 5px; /* 減少間距 */
+            margin-right: 5px; 
             border-left: none !important;
             border-bottom: 4px solid transparent;
+            
+            /* 縮小 padding */
+            padding: 4px 6px; 
           }
+          .day-item-text-title { font-size: 12px; line-height: 1.2; }
+          .day-item-text-date { font-size: 10px; margin-top: 1px; }
+
+          /* ⬇️ ✨ 手機版 Day Header (極致縮小) */
+          .day-header {
+             padding: 8px 10px;
+             margin-bottom: 10px;
+          }
+          .day-header-date { font-size: 12px; margin-bottom: 4px; }
+          .day-header-h2 { font-size: 1.1rem; }
+          .day-title-input { font-size: 1rem; padding: 4px 8px; }
         }
       `}</style>
 
@@ -396,7 +419,6 @@ export default function TripDetails() {
         <div style={{ color: '#666', fontSize: '14px', display:'flex', flexWrap: 'wrap', gap: '15px' }}>
           <span>📅 {trip.start_date} ~ {trip.end_date}</span>
           <span>💰 預算: ${trip.budget_goal}</span>
-          {/* 手機版隱藏旅伴 email，避免太長 */}
           <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             👫 {trip.trip_members?.length} 人
           </span>
@@ -404,7 +426,7 @@ export default function TripDetails() {
       </div>
 
       <div className="layout-container">
-        {/* 左側選單 (手機變橫向) */}
+        {/* 左側選單 */}
         <div className="sidebar">
           {days.map(day => (
             <div 
@@ -413,28 +435,27 @@ export default function TripDetails() {
               className="day-item"
               style={{ 
                 background: selectedDay?.id === day.id ? '#e3f2fd' : 'transparent', 
-                // 電腦版是左邊框，手機版利用上面的 style 改成下邊框
                 borderLeft: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent',
-                borderBottom: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent' // 手機版生效
+                borderBottom: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent' // 手機版生效 (因為CSS override border-left: none)
               }}
             >
-              {/* ⬇️ ✨ 極致縮小字體 */}
-              <div style={{ fontWeight: 'bold', color: '#333', fontSize: '12px', lineHeight:'1.2' }}>Day {day.day_number} {day.title ? <span style={{marginLeft:'3px'}}>{day.title}</span> : ''}</div>
-              <div style={{ fontSize: '10px', color: '#888', marginTop: '1px' }}>{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
+              {/* 使用 class 來控制字體大小 */}
+              <div className="day-item-text-title">Day {day.day_number} {day.title ? <span style={{marginLeft:'3px'}}>{day.title}</span> : ''}</div>
+              <div className="day-item-text-date">{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
             </div>
           ))}
         </div>
 
-        {/* 右側詳細行程 (支援 DND) */}
+        {/* 右側詳細行程 */}
         <div className="content-area">
           {selectedDay && (
             <>
-              {/* ⬇️ ✨ 已縮小的 Day Header */}
+              {/* 每日重點 Header */}
               <div className="day-header">
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: 'bold' }}>{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
+                <div className="day-header-date">{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h2 style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '1.2rem' }}>Day {selectedDay.day_number}</h2>
-                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" />
+                  <h2 className="day-header-h2">Day {selectedDay.day_number}</h2>
+                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" style={{border: '1px solid #ccc'}} />
                 </div>
               </div>
               
