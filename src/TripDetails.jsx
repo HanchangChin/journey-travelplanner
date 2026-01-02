@@ -304,28 +304,112 @@ export default function TripDetails() {
 
   return (
     <div className="container trip-details-page">
-      {/* ✨ CSS 樣式定義：RWD 分層處理 */}
+      {/* ✨ CSS 樣式定義：修正深色模式配色 */}
       <style>{`
-        /* --- 1. 基礎樣式 (適用於 電腦/平板) --- */
+        /* ================= 🎨 變數定義 (優化配色) ================= */
+        :root {
+            /* 淺色模式 (保持原樣) */
+            --bg-body: #ffffff;
+            --bg-sidebar: #ffffff;
+            --bg-content: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #ffffff;
+            --text-main: #333333;
+            --text-sub: #666666;
+            --text-muted: #888888;
+            --border-color: #e0e0e0;
+            
+            --primary: #007bff;
+            --primary-bg: #e3f2fd; /* 淺藍色背景 */
+            --primary-border: #007bff;
+            
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --header-bg-day: #f8f9fa;
+            --input-border: #cccccc;
+            
+            /* 特殊變數：選中天數背景 */
+            --bg-day-selected: #e3f2fd;
+            --border-day-selected: #007bff;
+            --text-day-selected: #007bff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* 深色模式 (重新設計) */
+                --bg-body: #121212;
+                --bg-sidebar: #1e1e1e;
+                --bg-content: #121212;
+                --bg-card: #1e1e1e;
+                --bg-input: #2a2a2a;
+                --text-main: #e0e0e0;
+                --text-sub: #aaaaaa;
+                --text-muted: #777777;
+                --border-color: #333333;
+                
+                --primary: #646cff; /* 稍微柔和的藍紫色 */
+                --primary-bg: #1a3b5c;
+                --primary-border: #646cff;
+                
+                --card-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                --header-bg-day: #1e1e1e;
+                --input-border: #444444;
+
+                /* 特殊變數：選中天數背景 (修正為半透明藍，而非亮白) */
+                --bg-day-selected: rgba(56, 189, 248, 0.15); 
+                --border-day-selected: #60a5fa;
+                --text-day-selected: #60a5fa;
+            }
+        }
+
+        /* ================= 📐 全局設定 ================= */
+        .trip-details-page {
+            color: var(--text-main);
+            background-color: var(--bg-body);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        a { color: var(--text-sub); text-decoration: none; }
+        input { 
+            background: var(--bg-input); 
+            color: var(--text-main); 
+            border: 1px solid var(--border-color); 
+            font-size: 16px; 
+        }
+
+        /* ================= 📐 佈局 (Responsive) ================= */
         .layout-container { display: flex; gap: 20px; min-height: 600px; }
         .sidebar { 
-            width: 220px; border-right: 1px solid #eee; padding-right: 10px; 
+            width: 220px; border-right: 1px solid var(--border-color); padding-right: 10px; 
             overflow-y: auto; max-height: 80vh; position: sticky; top: 20px; 
+            background: var(--bg-sidebar);
         }
         .content-area { flex: 1; padding-left: 10px; }
         
-        /* 寬鬆的電腦版設定 */
+        /* ⬇️ Day Item 樣式 */
         .day-item { 
             padding: 12px 10px; 
             cursor: pointer; 
             margin-bottom: 5px; 
             border-radius: 8px; 
             transition: all 0.2s; 
+            border: 1px solid transparent; /* 預留邊框位置 */
         }
-        .day-item-text-title { font-weight: bold; color: #333; font-size: 1rem; }
-        .day-item-text-date { font-size: 13px; color: #888; margin-top: 2px; }
+        
+        /* ✨ 新增：選中狀態的樣式 */
+        .day-item-active {
+            background-color: var(--bg-day-selected) !important;
+            border-color: var(--border-day-selected) !important;
+        }
+        .day-item-active .day-item-text-title {
+            color: var(--text-day-selected) !important;
+        }
 
-        /* 寬鬆的電腦版 Day Header */
+        .day-item:hover { background-color: var(--border-color); }
+        .day-item-text-title { font-weight: bold; color: var(--text-main); font-size: 1rem; }
+        .day-item-text-date { font-size: 13px; color: var(--text-sub); margin-top: 2px; }
+
+        /* Day Header */
         .day-header { 
             margin-bottom: 20px; 
             padding: 15px; 
@@ -338,33 +422,33 @@ export default function TripDetails() {
             padding: 8px 12px; 
             border-radius: 6px; 
             flex: 1; min-width: 0; 
+            border: 1px solid var(--border-color); /* 明確邊框 */
         }
-        .day-header-date { font-size: 14px; color: #666; margin-bottom: 8px; font-weight: bold; }
-        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.5rem; }
+        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: bold; }
+        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.5rem; color: var(--text-main); }
 
-        .day-item:hover { background-color: #f0f0f0; }
         .card-hover { cursor: pointer; transition: transform 0.1s; }
         .card-hover:active { transform: scale(0.98); }
 
-        /* --- 2. 手機版樣式 (Max-width: 768px) - 縮小 50% --- */
+        /* --- 手機版樣式 (Max-width: 768px) --- */
         @media (max-width: 768px) {
           .layout-container { flex-direction: column; }
           .sidebar { 
             width: 100%; 
             border-right: none; 
-            border-bottom: 1px solid #eee; 
+            border-bottom: 1px solid var(--border-color); 
             padding-right: 0; 
-            padding-bottom: 2px; /* 極致壓縮底部留白 */
-            display: flex; /* 變成橫向排列 */
-            overflow-x: auto; /* 支援橫向捲動 */
+            padding-bottom: 2px; 
+            display: flex; 
+            overflow-x: auto; 
             white-space: nowrap;
             position: relative;
             top: 0;
             max-height: auto;
+            background: var(--bg-body);
           }
           .content-area { padding-left: 0; margin-top: 10px; }
           
-          /* ⬇️ ✨ 手機版 Day Item (極致縮小) */
           .day-item { 
             flex: 0 0 auto;
             width: auto; 
@@ -372,20 +456,12 @@ export default function TripDetails() {
             text-align: center;
             margin-bottom: 0;
             margin-right: 5px; 
-            border-left: none !important;
-            border-bottom: 4px solid transparent;
-            
-            /* 縮小 padding */
             padding: 4px 6px; 
           }
           .day-item-text-title { font-size: 12px; line-height: 1.2; }
           .day-item-text-date { font-size: 10px; margin-top: 1px; }
 
-          /* ⬇️ ✨ 手機版 Day Header (極致縮小) */
-          .day-header {
-             padding: 8px 10px;
-             margin-bottom: 10px;
-          }
+          .day-header { padding: 8px 10px; margin-bottom: 10px; }
           .day-header-date { font-size: 12px; margin-bottom: 4px; }
           .day-header-h2 { font-size: 1.1rem; }
           .day-title-input { font-size: 1rem; padding: 4px 8px; }
@@ -411,12 +487,12 @@ export default function TripDetails() {
 
       {/* Header Info */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#666', display:'inline-block', marginBottom:'10px' }}>← 返回列表</Link>
-        <button onClick={() => setShowSettings(true)} style={{ padding: '8px 15px', background: '#f0f0f0', border: '1px solid #ccc', borderRadius:'20px', cursor:'pointer' }}>⚙️ 旅行設定</button>
+        <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', display:'inline-block', marginBottom:'10px' }}>← 返回列表</Link>
+        <button onClick={() => setShowSettings(true)} style={{ padding: '8px 15px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius:'20px', cursor:'pointer', color: 'var(--text-main)' }}>⚙️ 旅行設定</button>
       </div>
-      <div style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
+      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '10px' }}>
         <h1 style={{ margin: '0 0 5px 0', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>{trip.title}</h1>
-        <div style={{ color: '#666', fontSize: '14px', display:'flex', flexWrap: 'wrap', gap: '15px' }}>
+        <div style={{ color: 'var(--text-sub)', fontSize: '14px', display:'flex', flexWrap: 'wrap', gap: '15px' }}>
           <span>📅 {trip.start_date} ~ {trip.end_date}</span>
           <span>💰 預算: ${trip.budget_goal}</span>
           <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -432,14 +508,9 @@ export default function TripDetails() {
             <div 
               key={day.id} 
               onClick={() => setSelectedDay(day)} 
-              className="day-item"
-              style={{ 
-                background: selectedDay?.id === day.id ? '#e3f2fd' : 'transparent', 
-                borderLeft: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent',
-                borderBottom: selectedDay?.id === day.id ? '4px solid #007bff' : '4px solid transparent' // 手機版生效 (因為CSS override border-left: none)
-              }}
+              // ✨ 修正：使用 class 來控制樣式，不使用 inline style，以支援 dark mode 變數
+              className={`day-item ${selectedDay?.id === day.id ? 'day-item-active' : ''}`}
             >
-              {/* 使用 class 來控制字體大小 */}
               <div className="day-item-text-title">Day {day.day_number} {day.title ? <span style={{marginLeft:'3px'}}>{day.title}</span> : ''}</div>
               <div className="day-item-text-date">{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
             </div>
@@ -455,7 +526,7 @@ export default function TripDetails() {
                 <div className="day-header-date">{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <h2 className="day-header-h2">Day {selectedDay.day_number}</h2>
-                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" style={{border: '1px solid #ccc'}} />
+                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" />
                 </div>
               </div>
               
@@ -476,7 +547,7 @@ export default function TripDetails() {
                 </SortableContext>
               </DndContext>
               
-              <button onClick={openNewItemModal} style={{ width: '100%', padding: '15px', background: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px' }}><span>➕</span> 新增行程</button>
+              <button onClick={openNewItemModal} style={{ width: '100%', padding: '15px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px' }}><span>➕</span> 新增行程</button>
             </>
           )}
         </div>
