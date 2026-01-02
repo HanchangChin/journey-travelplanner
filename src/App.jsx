@@ -3,17 +3,31 @@ import { supabase } from './supabaseClient'
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { Auth } from '@supabase/auth-ui-react' 
 import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { 
+  QueryClient, 
+  QueryClientProvider, 
+  useQuery, 
+  useQueryClient 
+} from '@tanstack/react-query' // 導入 React Query
 import CreateTrip from './CreateTrip'
 import TripDetails from './TripDetails'
 
-// 0. 登入頁面元件
+// 初始化 React Query 客戶端 (全域)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 分鐘內視為資料新鮮，不重複抓取
+      gcTime: 1000 * 60 * 60 * 24, // 離線快取保留 24 小時
+      retry: 2, // 網路失敗自動重試 2 次
+    },
+  },
+})
+
+// --- 元件：登入頁面 ---
 function Login({ session }) {
   const navigate = useNavigate()
-
   useEffect(() => {
-    if (session) {
-      navigate('/') // 已登入則跳轉首頁
-    }
+    if (session) navigate('/')
   }, [session, navigate])
 
   if (!session) {
@@ -34,65 +48,52 @@ function Login({ session }) {
   return null
 }
 
-// 1. 首頁元件 (Home)
+// --- 元件：首頁 (具備離線能力) ---
 function Home({ session }) {
-  const [upcomingTrips, setUpcomingTrips] = useState([]) 
-  const [pastTrips, setPastTrips] = useState([])          
-  const [showCreateModal, setShowCreateModal] = useState(false) 
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  async function fetchTrips() {
-    const { data, error } = await supabase
-      .from('trips')
-      .select('*, trip_days(*), trip_destinations(*)')
-      .order('start_date', { ascending: false }) 
-    
-    if (error) console.error('Error:', error)
+  // 使用 React Query 抓取資料 (自動處理快取與離線顯示)
+  const { data: trips = [], isLoading, isRefetching } = useQuery({
+    queryKey: ['trips', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select('*, trip_days(*), trip_destinations(*)')
+        .order('start_date', { ascending: false })
+      if (error) throw error
+      return data
+    },
+    enabled: !!session?.user?.id, // 只有登入才執行
+  })
 
-    if (data) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0) 
-
-      const upcoming = []
-      const past = []
-
-      data.forEach(trip => {
-        const tripDate = trip.end_date ? new Date(trip.end_date) : new Date(trip.start_date)
-        if (tripDate < today) {
-          past.push(trip)
-        } else {
-          upcoming.push(trip)
-        }
-      })
-
-      upcoming.sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
-      past.sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
-
-      setUpcomingTrips(upcoming)
-      setPastTrips(past)
-    }
-  }
-
-  useEffect(() => { 
-      if (session) fetchTrips() 
-  }, [session])
+  // 分類行程 (從快取的 trips 中分類)
+  const today = new Date().setHours(0, 0, 0, 0)
+  const upcomingTrips = trips
+    .filter(t => (t.end_date ? new Date(t.end_date) : new Date(t.start_date)) >= today)
+    .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+  
+  const pastTrips = trips
+    .filter(t => (t.end_date ? new Date(t.end_date) : new Date(t.start_date)) < today)
+    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
 
   const handleTripCreated = () => {
-    fetchTrips()
+    queryClient.invalidateQueries(['trips']) // 重新整理資料
     setShowCreateModal(false)
   }
 
   const handleLogout = async () => {
-      await supabase.auth.signOut()
+    await supabase.auth.signOut()
+    queryClient.clear() // 清除快取
   }
 
   const TripCard = ({ trip, isPast }) => (
     <div 
       onClick={() => navigate(`/trip/${trip.id}`)}
-      className="card" // 使用 index.css 定義的卡片樣式
+      className="card"
       style={{ 
-        cursor: 'pointer', 
-        opacity: isPast ? 0.6 : 1,
+        cursor: 'pointer', opacity: isPast ? 0.6 : 1,
         borderLeft: isPast ? '4px solid #666' : '4px solid #646cff'
       }}
     >
@@ -112,64 +113,41 @@ function Home({ session }) {
 
   return (
     <div className="container">
-      {/* 標題區 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
         <div>
           <h1 style={{ margin: 0 }}>🌍 Journey Travel Planner</h1>
           <p style={{ color: '#aaa', margin: '5px 0 0 0' }}>{session?.user?.email} 的旅程</p>
+          {isRefetching && <span style={{fontSize: '10px', color: '#646cff'}}>同步中...</span>}
         </div>
-        <button 
-            onClick={handleLogout}
-            style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #444', borderRadius: '6px', fontSize: '12px' }}
-        >
-            登出
-        </button>
+        <button onClick={handleLogout} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #444', borderRadius: '6px', fontSize: '12px' }}>登出</button>
       </div>
 
-      {/* 1. 即將出發 */}
       <div style={{ marginBottom: '50px' }}>
-        <h3 style={{ borderBottom: '2px solid #646cff', paddingBottom: '10px', margin: '0 0 20px 0' }}>
-          🛫 我的旅行 ({upcomingTrips.length})
-        </h3>
-        {upcomingTrips.length > 0 ? (
+        <h3 style={{ borderBottom: '2px solid #646cff', paddingBottom: '10px', margin: '0 0 20px 0' }}>🛫 我的旅行 ({upcomingTrips.length})</h3>
+        {isLoading ? (
+          <p>讀取中...</p>
+        ) : upcomingTrips.length > 0 ? (
           upcomingTrips.map(trip => <TripCard key={trip.id} trip={trip} isPast={false} />)
         ) : (
-          <div style={{ textAlign: 'center', padding: '60px', background: '#1e1e1e', borderRadius: '16px', color: '#888', border: '1px dashed #444' }}>
-            還沒有即將出發的行程，點擊下方按鈕開始規劃！
-          </div>
+          <div style={{ textAlign: 'center', padding: '60px', background: '#1e1e1e', borderRadius: '16px', color: '#888', border: '1px dashed #444' }}>還沒有即將出發的行程，點擊下方開始規劃！</div>
         )}
       </div>
 
-      {/* 2. 過去旅行 */}
       {pastTrips.length > 0 && (
         <div style={{ marginBottom: '100px' }}>
-          <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#888' }}>
-            🗄️ 過去旅行 ({pastTrips.length})
-          </h3>
+          <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#888' }}>🗄️ 過去旅行 ({pastTrips.length})</h3>
           {pastTrips.map(trip => <TripCard key={trip.id} trip={trip} isPast={true} />)}
         </div>
       )}
 
-      {/* 3. 建立按鈕 (固定在底部或是置中) */}
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          style={{ 
-            padding: '16px 40px', 
-            fontSize: '1.1rem', 
-            background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)',
-            boxShadow: '0 8px 20px rgba(100, 108, 255, 0.3)'
-          }}
-        >
-          ✨ 開始規劃新旅行
-        </button>
+        <button onClick={() => setShowCreateModal(true)} style={{ padding: '16px 40px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #646cff 0%, #535bf2 100%)', boxShadow: '0 8px 20px rgba(100, 108, 255, 0.3)' }}>✨ 開始規劃新旅行</button>
       </div>
 
-      {/* 4. 建立新旅行 Modal */}
       {showCreateModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
           <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '550px', position: 'relative', border: '1px solid #333', animation: 'fadeIn 0.3s ease' }}>
-            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', cursor: 'pointer', color: '#666' }}>×</button>
+            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', color: '#666' }}>×</button>
             <h2 style={{ marginTop: 0, textAlign: 'center', color: 'white' }}>✈️ 建立新旅程</h2>
             <div style={{borderBottom:'1px solid #333', margin:'20px 0'}}></div>
             <CreateTrip onTripCreated={handleTripCreated} userId={session?.user?.id} />
@@ -181,7 +159,7 @@ function Home({ session }) {
   )
 }
 
-// 3. 主程式路由
+// --- 主程式路由 (進入點加入 Provider) ---
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -191,26 +169,24 @@ export default function App() {
       setSession(session)
       setLoading(false)
     })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setLoading(false)
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) {
-      return <div style={{height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', background:'#121212', color:'white'}}>載入中...</div>
-  }
+  if (loading) return <div style={{height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', background:'#121212', color:'white'}}>載入中...</div>
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={!session ? <Navigate to="/login" /> : <Home session={session} />} />
-        <Route path="/login" element={<Login session={session} />} />
-        <Route path="/trip/:tripId" element={!session ? <Navigate to="/login" /> : <TripDetails />} />
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={!session ? <Navigate to="/login" /> : <Home session={session} />} />
+          <Route path="/login" element={<Login session={session} />} />
+          <Route path="/trip/:tripId" element={!session ? <Navigate to="/login" /> : <TripDetails />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }

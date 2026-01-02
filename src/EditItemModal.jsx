@@ -165,7 +165,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
       else { setDetails(prev => ({...prev, arrival_day_offset: 0})) }
   }
 
-  // ✨ 修正：使用 'TRIP-ATTACHMENT' bucket (全大寫)
   const handleFileUpload = async (event) => {
     try {
       setUploading(true)
@@ -316,40 +315,89 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
   const updateTraveler = (idx, field, val) => { const n=[...details.travelers]; n[idx][field]=val; setDetails({...details, travelers:n}) }
   const addTraveler = () => { setDetails(prev => ({ ...prev, travelers: [...prev.travelers, { name: '', seat: '', booking_ref: '', cost: '' }] })) }
   const removeTraveler = (idx) => { setDetails(prev => ({ ...prev, travelers: details.travelers.filter((_, i) => i !== idx) })) }
-  const renderTimeInput = (value, onChange) => <input type="time" value={value} onChange={e => onChange(e.target.value)} style={inputStyle} />
 
   const categories = [ { value: 'activity', label: '🎡 景點/活動' }, { value: 'food', label: '🍴 餐廳/美食' }, { value: 'accommodation', label: '🛏️ 住宿' }, { value: 'transport', label: '🚆 交通/航班' }, { value: 'note', label: '📝 筆記/檔案' }, { value: 'other', label: '📝 其他' } ]
   if (!isLoaded) return <div style={{padding:'20px'}}>Google Maps Loading...</div>
 
-  const inputStyle = { width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px', boxSizing:'border-box' }
-  const labelStyle = { fontSize: '12px', color: '#666', display:'block', marginBottom:'3px', fontWeight:'bold' }
-  const sectionTitle = { fontSize: '14px', fontWeight: 'bold', color: '#007bff', borderBottom: '1px solid #eee', paddingBottom: '5px', margin: '15px 0 10px 0' }
-  const selectStyle = { padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }
-
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-      <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 style={{ marginTop: 0 }}>{itemToEdit ? '✏️ 編輯行程' : '➕ 新增行程'}</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div className="modal-overlay">
+      {/* ✨ CSS Styling Block */}
+      <style>{`
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.6);
+            display: flex; alignItems: center; justifyContent: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white; padding: 25px; borderRadius: 12px;
+            width: 700px; maxWidth: 95%; maxHeight: 90vh; overflow-y: auto;
+        }
+        h2 { margin-top: 0; }
+        
+        /* 📱 Responsive Grid System */
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .form-col { flex: 1; }
+        .form-col-2 { flex: 2; }
+        
+        @media (max-width: 600px) {
+            .form-row { flex-direction: column; gap: 10px; }
+            .modal-content { padding: 15px; }
+        }
+
+        /* 📱 Mobile Input Zoom Prevention (Font size 16px) */
+        input, select, textarea {
+            width: 100%; padding: 10px;
+            font-size: 16px; /* ✨ Key fix for iOS zoom */
+            border: 1px solid #ccc; borderRadius: 6px;
+            box-sizing: border-box;
+        }
+
+        label {
+            font-size: 14px; color: #666; display: block;
+            margin-bottom: 4px; fontWeight: bold;
+        }
+        
+        .section-title {
+            font-size: 14px; fontWeight: bold; color: #007bff;
+            border-bottom: 1px solid #eee; padding-bottom: 5px; margin: 15px 0 10px 0;
+        }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border: none; borderRadius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .btn-save { background: #007bff; color: white; }
+        .btn-cancel { background: #e0e0e0; color: #333; }
+        .btn-delete { background: #dc3545; color: white; }
+        
+        .transport-options { display: flex; margin-bottom: 15px; border-bottom: 1px solid #ddd; }
+        .transport-btn { flex: 1; padding: 10px; border: none; cursor: pointer; background: #f0f0f0; }
+        .transport-btn.active { background: white; border-bottom: 2px solid #007bff; }
+      `}</style>
+
+      <div className="modal-content">
+        <h2>{itemToEdit ? '✏️ 編輯行程' : '➕ 新增行程'}</h2>
+        <form onSubmit={handleSubmit}>
           
-          <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize:'16px' }}>
-            {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
+          <div style={{ marginBottom: '10px' }}>
+            <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
 
           {/* ================= 筆記模式 (Note) ================= */}
           {formData.category === 'note' && (
               <div style={{ background: '#fff9c4', padding: '15px', borderRadius: '8px', border: '1px solid #fff59d' }}>
-                  <div style={sectionTitle}>📝 筆記與附件</div>
+                  <div className="section-title">📝 筆記與附件</div>
                   <div style={{marginBottom:'10px'}}>
-                      <label style={labelStyle}>標題</label>
-                      <input placeholder="標題 (例如: 電子機票)" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} required />
+                      <label>標題</label>
+                      <input placeholder="標題 (例如: 電子機票)" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                   </div>
                   <div style={{marginBottom:'10px'}}>
-                      <label style={labelStyle}>內容</label>
-                      <textarea placeholder="輸入內容..." rows="4" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} style={{...inputStyle, resize:'vertical'}} />
+                      <label>內容</label>
+                      <textarea placeholder="輸入內容..." rows="4" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
                   </div>
                   <div>
-                      <label style={labelStyle}>📎 附件 (圖片/PDF)</label>
+                      <label>📎 附件 (圖片/PDF)</label>
                       <input type="file" accept="image/*,application/pdf" onChange={handleFileUpload} disabled={uploading} style={{marginTop:'5px'}} />
                       {uploading && <span style={{fontSize:'12px', color:'blue'}}> 上傳中...</span>}
                       {formData.attachment_url && (
@@ -368,29 +416,35 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
           {/* ================= 交通區塊 ================= */}
           {formData.category === 'transport' && (
             <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #e9ecef' }}>
-              <div style={{display:'flex', marginBottom:'15px', borderBottom:'1px solid #ddd'}}>
-                  <button type="button" onClick={() => setDetails({...details, sub_type:'flight_train'})} style={{flex:1, padding:'10px', background: details.sub_type==='flight_train'?'white':'#f0f0f0', border:'none', cursor:'pointer'}}>✈️ 航班/火車</button>
-                  <button type="button" onClick={() => setDetails({...details, sub_type:'car_bus'})} style={{flex:1, padding:'10px', background: details.sub_type==='car_bus'?'white':'#f0f0f0', border:'none', cursor:'pointer'}}>🚗 自駕/接送</button>
-                  <button type="button" onClick={() => setDetails({...details, sub_type:'public'})} style={{flex:1, padding:'10px', background: details.sub_type==='public'?'white':'#f0f0f0', border:'none', cursor:'pointer'}}>🚌 大眾運輸</button>
+              <div className="transport-options">
+                  <button type="button" onClick={() => setDetails({...details, sub_type:'flight_train'})} className={`transport-btn ${details.sub_type==='flight_train'?'active':''}`}>✈️ 航班/火車</button>
+                  <button type="button" onClick={() => setDetails({...details, sub_type:'car_bus'})} className={`transport-btn ${details.sub_type==='car_bus'?'active':''}`}>🚗 自駕/接送</button>
+                  <button type="button" onClick={() => setDetails({...details, sub_type:'public'})} className={`transport-btn ${details.sub_type==='public'?'active':''}`}>🚌 大眾運輸</button>
               </div>
 
               {details.sub_type !== 'public' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom:'10px' }}>
-                    <div><label style={labelStyle}>{details.sub_type==='flight_train'?'公司':'租車/司機'}</label><input placeholder="名稱" value={details.company} onChange={e => setDetails({...details, company: e.target.value})} style={inputStyle} /></div>
-                    <div><label style={labelStyle}>{details.sub_type==='flight_train'?'班次':'預約代號'}</label><input placeholder="編號" value={details.vehicle_number} onChange={e => setDetails({...details, vehicle_number: e.target.value})} style={inputStyle} /></div>
+                  <div className="form-row">
+                    <div className="form-col">
+                        <label>{details.sub_type==='flight_train'?'公司':'租車/司機'}</label>
+                        <input placeholder="名稱" value={details.company} onChange={e => setDetails({...details, company: e.target.value})} />
+                    </div>
+                    <div className="form-col">
+                        <label>{details.sub_type==='flight_train'?'班次':'預約代號'}</label>
+                        <input placeholder="編號" value={details.vehicle_number} onChange={e => setDetails({...details, vehicle_number: e.target.value})} />
+                    </div>
                   </div>
               )}
               
-              <div style={sectionTitle}>🛫 起訖點 (Google Route)</div>
+              <div className="section-title">🛫 起訖點 (Google Route)</div>
               <div style={{marginBottom:'10px'}}>
-                <label style={labelStyle}>📍 出發地點</label>
-                <Autocomplete onLoad={setAutocompleteDep} onPlaceChanged={onDepPlaceChanged}><input placeholder="搜尋出發地" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} style={inputStyle} /></Autocomplete>
-                {details.sub_type === 'flight_train' && <input placeholder="出發航廈" value={details.departure_terminal} onChange={e => setDetails({...details, departure_terminal: e.target.value})} style={{...inputStyle, marginTop:'5px'}} />}
+                <label>📍 出發地點</label>
+                <Autocomplete onLoad={setAutocompleteDep} onPlaceChanged={onDepPlaceChanged}><input placeholder="搜尋出發地" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} /></Autocomplete>
+                {details.sub_type === 'flight_train' && <input placeholder="出發航廈" value={details.departure_terminal} onChange={e => setDetails({...details, departure_terminal: e.target.value})} style={{marginTop:'5px'}} />}
               </div>
               <div style={{marginBottom:'10px'}}>
-                <label style={labelStyle}>🏁 抵達地點</label>
-                <Autocomplete onLoad={setAutocompleteArr} onPlaceChanged={onArrPlaceChanged}><input placeholder="搜尋抵達地" value={details.arrival_location} onChange={e => setDetails({...details, arrival_location: e.target.value})} style={inputStyle} /></Autocomplete>
-                {details.sub_type === 'flight_train' && <input placeholder="抵達航廈" value={details.arrival_terminal} onChange={e => setDetails({...details, arrival_terminal: e.target.value})} style={{...inputStyle, marginTop:'5px'}} />}
+                <label>🏁 抵達地點</label>
+                <Autocomplete onLoad={setAutocompleteArr} onPlaceChanged={onArrPlaceChanged}><input placeholder="搜尋抵達地" value={details.arrival_location} onChange={e => setDetails({...details, arrival_location: e.target.value})} /></Autocomplete>
+                {details.sub_type === 'flight_train' && <input placeholder="抵達航廈" value={details.arrival_terminal} onChange={e => setDetails({...details, arrival_terminal: e.target.value})} style={{marginTop:'5px'}} />}
               </div>
               
               {(details.sub_type === 'car_bus' || details.sub_type === 'public') && (
@@ -400,38 +454,52 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                           <span>{details.sub_type==='public'?'🚌':'🚗'} Google: {details.google_duration ? Math.floor(details.google_duration) + ' min' : '--'}</span>
                       </div>
                       <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                          <label style={{fontSize:'12px', fontWeight:'bold', color:'#856404'}}>Buffer:</label>
-                          <input type="number" placeholder="分" value={details.buffer_time} onChange={e => setDetails({...details, buffer_time: e.target.value})} style={{width:'60px', padding:'5px', borderRadius:'4px'}} />
+                          <label style={{color:'#856404', marginBottom:0}}>Buffer:</label>
+                          <input type="number" placeholder="分" value={details.buffer_time} onChange={e => setDetails({...details, buffer_time: e.target.value})} style={{width:'80px'}} />
                       </div>
                   </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.6fr 1fr', gap: '10px', background:'#e3f2fd', padding:'10px', borderRadius:'6px' }}>
-                <div><label style={labelStyle}>出發時間</label>{renderTimeInput(formData.start_time, (val) => setFormData({...formData, start_time: val}))}</div>
-                <div>
-                  <label style={labelStyle}>抵達時間</label>
-                  <div style={{display:'flex', gap:'5px'}}>
-                     <div style={{flex:1}}>{renderTimeInput(formData.end_time, (val) => setFormData({...formData, end_time: val}))}</div>
-                     <select value={details.arrival_day_offset} onChange={e => setDetails({...details, arrival_day_offset: parseInt(e.target.value)})} style={{...selectStyle, fontSize:'12px', minWidth:'60px'}}><option value={0}>當日</option><option value={1}>+1</option><option value={2}>+2</option></select>
-                  </div>
-                  {(details.sub_type === 'car_bus' || details.sub_type === 'public') && details.google_duration > 0 && <button type="button" onClick={applySuggestedTime} style={{fontSize:'10px', width:'100%', marginTop:'5px', background:'#28a745', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>套用建議時間</button>}
+              <div style={{ background:'#e3f2fd', padding:'10px', borderRadius:'6px' }}>
+                <div className="form-row">
+                    <div className="form-col">
+                        <label>出發時間</label>
+                        <input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} />
+                    </div>
+                    <div className="form-col">
+                         <label>抵達時間</label>
+                         <div style={{display:'flex', gap:'5px'}}>
+                             <input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} style={{flex:1}} />
+                             <select value={details.arrival_day_offset} onChange={e => setDetails({...details, arrival_day_offset: parseInt(e.target.value)})} style={{width:'80px'}}>
+                                 <option value={0}>當日</option><option value={1}>+1</option><option value={2}>+2</option>
+                             </select>
+                         </div>
+                         {(details.sub_type === 'car_bus' || details.sub_type === 'public') && details.google_duration > 0 && 
+                            <button type="button" onClick={applySuggestedTime} style={{fontSize:'12px', width:'100%', marginTop:'5px', padding: '5px', background:'#28a745', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>套用建議時間</button>
+                         }
+                    </div>
                 </div>
-                <div><label style={labelStyle}>時長</label><input value={details.duration_text} onChange={e => setDetails({...details, duration_text: e.target.value})} style={{...inputStyle, background:'white'}} /></div>
+                <div>
+                    <label>時長</label>
+                    <input value={details.duration_text} onChange={e => setDetails({...details, duration_text: e.target.value})} style={{background:'white'}} />
+                </div>
               </div>
 
-              {details.arrival_day_offset > 0 && <button type="button" onClick={createArrivalItem} style={{width: '100%', marginTop: '5px', padding: '10px', background: '#e3f2fd', color: '#0056b3', border: '1px dashed #0056b3', borderRadius: '6px', cursor: 'pointer', fontWeight:'bold'}}>⬇️ 補救：生成抵達行程</button>}
+              {details.arrival_day_offset > 0 && <button type="button" onClick={createArrivalItem} style={{width: '100%', marginTop: '10px', padding: '10px', background: '#e3f2fd', color: '#0056b3', border: '1px dashed #0056b3', borderRadius: '6px', cursor: 'pointer', fontWeight:'bold'}}>⬇️ 補救：生成抵達行程</button>}
 
               {details.sub_type !== 'public' && (
                 <>
-                  <div style={sectionTitle}>👥 同行旅伴</div>
+                  <div className="section-title">👥 同行旅伴</div>
                   {details.travelers.map((t, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr auto', gap: '5px', marginBottom:'5px' }}>
-                      <input list={`m-${index}`} placeholder="姓名" value={t.name} onChange={e => updateTraveler(index, 'name', e.target.value)} style={inputStyle} />
-                      <datalist id={`m-${index}`}>{tripMembers.map(m => <option key={m.id} value={m.email} />)}</datalist>
-                      <input placeholder={details.sub_type==='car_bus'?'備註':'代號'} value={t.booking_ref} onChange={e => updateTraveler(index, 'booking_ref', e.target.value)} style={inputStyle} />
-                      <input placeholder="座位" value={t.seat} onChange={e => updateTraveler(index, 'seat', e.target.value)} style={inputStyle} />
-                      <input placeholder="$" type="number" value={t.cost} onChange={e => updateTraveler(index, 'cost', e.target.value)} style={inputStyle} />
-                      <button type="button" onClick={() => removeTraveler(index)} style={{background:'#ff4d4f', color:'white', border:'none', borderRadius:'4px'}}>×</button>
+                    <div key={index} className="form-row" style={{ alignItems: 'center' }}>
+                      <div className="form-col-2">
+                          <input list={`m-${index}`} placeholder="姓名" value={t.name} onChange={e => updateTraveler(index, 'name', e.target.value)} />
+                          <datalist id={`m-${index}`}>{tripMembers.map(m => <option key={m.id} value={m.email} />)}</datalist>
+                      </div>
+                      <div className="form-col"><input placeholder={details.sub_type==='car_bus'?'備註':'代號'} value={t.booking_ref} onChange={e => updateTraveler(index, 'booking_ref', e.target.value)} /></div>
+                      <div className="form-col"><input placeholder="座位" value={t.seat} onChange={e => updateTraveler(index, 'seat', e.target.value)} /></div>
+                      <div className="form-col"><input placeholder="$" type="number" value={t.cost} onChange={e => updateTraveler(index, 'cost', e.target.value)} /></div>
+                      <button type="button" onClick={() => removeTraveler(index)} style={{background:'#ff4d4f', color:'white', border:'none', borderRadius:'4px', width:'40px', height:'40px', fontSize:'20px', cursor:'pointer'}}>×</button>
                     </div>
                   ))}
                   <button type="button" onClick={addTraveler} style={{ marginTop: '5px', padding: '8px', background: '#fff', border: '1px dashed #007bff', color: '#007bff', borderRadius: '6px', cursor: 'pointer', width: '100%' }}>+ 新增旅伴</button>
@@ -443,33 +511,44 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
           {/* ================= 住宿區塊 ================= */}
           {formData.category === 'accommodation' && (
              <div style={{ background: '#fff5f0', padding: '15px', borderRadius: '8px', border: '1px solid #ffd6c2' }}>
-                <div style={sectionTitle}>🏨 住宿詳情</div>
+                <div className="section-title">🏨 住宿詳情</div>
                 <div style={{marginBottom:'10px'}}>
-                    <label style={labelStyle}>📍 搜尋飯店</label>
-                    <Autocomplete onLoad={setAutocompleteHotel} onPlaceChanged={onHotelPlaceChanged}><input placeholder="輸入名稱 (Google)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} style={inputStyle} /></Autocomplete>
-                    <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'10px', marginTop:'5px'}}>
-                        <input placeholder="地址" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} style={inputStyle} />
-                        <input placeholder="電話" value={details.phone} onChange={e => setDetails({...details, phone: e.target.value})} style={inputStyle} />
+                    <label>📍 搜尋飯店</label>
+                    <Autocomplete onLoad={setAutocompleteHotel} onPlaceChanged={onHotelPlaceChanged}><input placeholder="輸入名稱 (Google)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} /></Autocomplete>
+                    <div className="form-row" style={{marginTop:'10px'}}>
+                        <div className="form-col-2"><input placeholder="地址" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
+                        <div className="form-col"><input placeholder="電話" value={details.phone} onChange={e => setDetails({...details, phone: e.target.value})} /></div>
                     </div>
-                    <input placeholder="網址" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} style={{...inputStyle, marginTop:'5px'}} />
+                    <input placeholder="網址" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} style={{marginTop:'10px'}} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                    <div style={{background:'white', padding:'10px', borderRadius:'6px', border:'1px solid #eee'}}>
-                        <label style={{...labelStyle, color:'#e65100'}}>📥 Check-in</label>
-                        <input type="date" value={details.checkin_date} onChange={e => setDetails({...details, checkin_date: e.target.value})} style={{...inputStyle, marginBottom:'5px'}} />
-                        {renderTimeInput(formData.start_time, (val) => setFormData({...formData, start_time: val}))}
+                <div className="form-row">
+                    <div className="form-col" style={{background:'white', padding:'10px', borderRadius:'6px', border:'1px solid #eee'}}>
+                        <label style={{color:'#e65100'}}>📥 Check-in</label>
+                        <input type="date" value={details.checkin_date} onChange={e => setDetails({...details, checkin_date: e.target.value})} style={{marginBottom:'5px'}} />
+                        <input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} />
                     </div>
-                    <div style={{background:'white', padding:'10px', borderRadius:'6px', border:'1px solid #eee'}}>
-                        <label style={{...labelStyle, color:'#e65100'}}>📤 Check-out</label>
-                        <input type="date" value={details.checkout_date} onChange={e => setDetails({...details, checkout_date: e.target.value})} style={{...inputStyle, marginBottom:'5px'}} />
-                        {renderTimeInput(formData.end_time, (val) => setFormData({...formData, end_time: val}))}
+                    <div className="form-col" style={{background:'white', padding:'10px', borderRadius:'6px', border:'1px solid #eee'}}>
+                        <label style={{color:'#e65100'}}>📤 Check-out</label>
+                        <input type="date" value={details.checkout_date} onChange={e => setDetails({...details, checkout_date: e.target.value})} style={{marginBottom:'5px'}} />
+                        <input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
                     </div>
                 </div>
-                <div style={{marginTop:'10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
-                    <input placeholder="Agent (Agoda...)" list="agents" value={details.agent} onChange={e => setDetails({...details, agent: e.target.value})} style={inputStyle} />
-                    <datalist id="agents"><option value="Booking"/><option value="Agoda"/><option value="Airbnb"/></datalist>
-                    <div style={{display:'flex', gap:'5px'}}><input type="number" placeholder="$" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} style={{...inputStyle, flex:2}} /><input placeholder="幣" value={details.currency} onChange={e => setDetails({...details, currency: e.target.value})} style={{...inputStyle, flex:1}} /></div>
-                    <select value={details.is_paid} onChange={e => setDetails({...details, is_paid: e.target.value === 'true'})} style={{...inputStyle, color: details.is_paid ? '#28a745':'#dc3545', fontWeight:'bold'}}><option value="false">❌ 未付</option><option value="true">✅ 已付</option></select>
+                <div className="form-row" style={{marginTop:'10px'}}>
+                    <div className="form-col">
+                        <input placeholder="Agent (Agoda...)" list="agents" value={details.agent} onChange={e => setDetails({...details, agent: e.target.value})} />
+                        <datalist id="agents"><option value="Booking"/><option value="Agoda"/><option value="Airbnb"/></datalist>
+                    </div>
+                    <div className="form-col">
+                        <div style={{display:'flex', gap:'5px'}}>
+                             <input type="number" placeholder="$" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} style={{flex:2}} />
+                             <input placeholder="幣" value={details.currency} onChange={e => setDetails({...details, currency: e.target.value})} style={{flex:1}} />
+                        </div>
+                    </div>
+                    <div className="form-col">
+                         <select value={details.is_paid} onChange={e => setDetails({...details, is_paid: e.target.value === 'true'})} style={{color: details.is_paid ? '#28a745':'#dc3545', fontWeight:'bold'}}>
+                             <option value="false">❌ 未付</option><option value="true">✅ 已付</option>
+                         </select>
+                    </div>
                 </div>
              </div>
           )}
@@ -477,40 +556,40 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
           {/* ================= 一般行程 ================= */}
           {!['transport', 'accommodation', 'note'].includes(formData.category) && (
             <>
-               <div style={{ display: 'flex', gap: '10px' }}><input placeholder="名稱" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required style={inputStyle} /></div>
-               <div style={{border: '1px solid #ccc', padding:'10px', borderRadius:'6px'}}>
-                <label style={labelStyle}>📍 地點搜尋 (自動帶入網址/電話/營業時間)</label>
+               <div style={{ marginBottom: '10px' }}><input placeholder="名稱" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required /></div>
+               <div style={{border: '1px solid #ccc', padding:'10px', borderRadius:'6px', marginBottom: '10px'}}>
+                <label>📍 地點搜尋</label>
                 <Autocomplete onLoad={setAutocompleteDep} onPlaceChanged={onDepPlaceChanged}>
-                    <input placeholder="搜尋地點 (例如: 清水寺)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} style={inputStyle} />
+                    <input placeholder="搜尋地點 (例如: 清水寺)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} />
                 </Autocomplete>
-                <input placeholder="地址" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} style={{...inputStyle, marginTop:'10px', background:'#f9f9f9'}} />
-                <div style={{marginTop:'10px', display:'grid', gap:'10px'}}>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                        <input placeholder="電話" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
-                        <input placeholder="官方網址" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} style={inputStyle} />
+                <input placeholder="地址" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} style={{marginTop:'10px', background:'#f9f9f9'}} />
+                <div style={{marginTop:'10px'}}>
+                    <div className="form-row">
+                        <div className="form-col"><input placeholder="電話" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
+                        <div className="form-col"><input placeholder="官方網址" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} /></div>
                     </div>
                     <div>
-                        <label style={{fontSize:'12px', color:'#666', marginBottom:'2px', display:'block'}}>🕒 營業時間</label>
-                        <textarea placeholder="自動抓取營業時間，或手動輸入" rows="4" value={formData.opening_hours} onChange={e => setFormData({...formData, opening_hours: e.target.value})} style={{...inputStyle, fontFamily:'monospace', fontSize:'12px', resize:'vertical'}} />
+                        <label style={{fontSize:'12px', color:'#666', marginBottom:'2px'}}>🕒 營業時間</label>
+                        <textarea placeholder="自動抓取營業時間，或手動輸入" rows="4" value={formData.opening_hours} onChange={e => setFormData({...formData, opening_hours: e.target.value})} style={{fontFamily:'monospace', fontSize:'12px', resize:'vertical'}} />
                     </div>
                 </div>
                </div>
-               <div style={{ display: 'flex', gap: '10px' }}>
-                   <div style={{flex:1}}><label style={labelStyle}>開始</label>{renderTimeInput(formData.start_time, (val) => setFormData({...formData, start_time: val}))}</div>
-                   <div style={{flex:1}}><label style={labelStyle}>結束</label>{renderTimeInput(formData.end_time, (val) => setFormData({...formData, end_time: val}))}</div>
+               <div className="form-row">
+                   <div className="form-col"><label>開始</label><input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} /></div>
+                   <div className="form-col"><label>結束</label><input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} /></div>
                </div>
-               <input type="number" placeholder="費用" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} style={inputStyle} />
+               <input type="number" placeholder="費用" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} />
             </>
           )}
 
           {formData.category !== 'note' && (
-              <textarea placeholder="備註" rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} style={{...inputStyle, resize:'vertical'}} />
+              <textarea placeholder="備註" rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} style={{resize:'vertical'}} />
           )}
           
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            {itemToEdit && <button type="button" onClick={handleDelete} style={{ flex: 1, padding: '12px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>刪除</button>}
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', background: '#e0e0e0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>取消</button>
-            <button type="submit" disabled={loading} style={{ flex: 1, padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>儲存</button>
+          <div className="btn-group">
+            {itemToEdit && <button type="button" onClick={handleDelete} className="btn btn-delete">刪除</button>}
+            <button type="button" onClick={onClose} className="btn btn-cancel">取消</button>
+            <button type="submit" disabled={loading} className="btn btn-save">儲存</button>
           </div>
         </form>
       </div>

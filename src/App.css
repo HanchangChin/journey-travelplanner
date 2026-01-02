@@ -1,8 +1,13 @@
+/* --- 基礎設定 (適用於電腦版) --- */
 #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  
+  /* ✨ 新增：確保寬度計算包含 padding，避免手機版出現橫向捲軸 */
+  width: 100%;
+  box-sizing: border-box; 
 }
 
 .logo {
@@ -11,9 +16,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -39,4 +46,33 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* --- 📱 手機與平板專用設定 (螢幕寬度小於 768px 時觸發) --- */
+@media (max-width: 768px) {
+  #root {
+    /* 手機版邊距縮小，釋放更多空間給內容 */
+    padding: 1rem;
+    
+    /* 配合 iOS 安全區域 (避免被瀏海或動態島擋住) */
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .logo {
+    /* 手機版 Logo 縮小，避免佔據太多垂直空間 */
+    height: 4em;
+    padding: 0.8em;
+  }
+
+  .card {
+    /* 卡片內距縮小 */
+    padding: 1em;
+  }
+  
+  h1 {
+    /* 若有 h1 標題，自動縮小字體 */
+    font-size: 2rem; 
+    line-height: 1.1;
+  }
 }
