@@ -322,17 +322,18 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
 
   return (
     <div className="modal-overlay">
-      {/* ✨ 樣式定義：使用 CSS 變數支援深色模式 & 縮小版面(80%) & 解決動態島遮擋 */}
+      {/* ✨ 樣式定義：使用 App.css 的變數支援深色模式 */}
       <style>{`
         :root {
-            /* 淺色模式變數 */
-            --modal-bg: #ffffff;
-            --text-color: #333333;
-            --text-sub: #666666;
-            --input-bg: #ffffff;
-            --input-border: #cccccc;
+            /* 🔗 連結到 App.css 定義的全域變數 (預設淺色) */
+            --modal-bg: var(--bg-card, #ffffff);
+            --text-color: var(--text-main, #333333);
+            --text-sub: var(--text-sub, #666666);
+            --input-bg: var(--bg-input, #ffffff);
+            --input-border: var(--border-color, #cccccc);
             --btn-gray: #f0f0f0;
             
+            /* 區塊顏色 (淺色模式預設) */
             --bg-transport: #f8f9fa;
             --border-transport: #e9ecef;
             --bg-transport-sub: #fff3cd;
@@ -349,73 +350,72 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             --border-note: #fff59d;
         }
 
+        /* 🌙 系統深色模式覆寫 (System Dark Mode) */
         @media (prefers-color-scheme: dark) {
             :root {
-                /* 深色模式變數 */
-                --modal-bg: #1e1e1e;
-                --text-color: #e0e0e0;
-                --text-sub: #aaaaaa;
-                --input-bg: #2d2d2d;
-                --input-border: #444444;
+                /* 按鈕與細節微調 */
                 --btn-gray: #333333;
                 
+                /* 區塊顏色 (深色模式適配：深底 + 淺字) */
                 --bg-transport: #252526;
                 --border-transport: #333333;
-                --bg-transport-sub: #3d3522;
-                --border-transport-sub: #5c5035;
-                --text-transport-sub: #ffd700;
+                --bg-transport-sub: #4d442b; /* 深黃褐色 */
+                --border-transport-sub: #665d3e;
+                --text-transport-sub: #ffd700; /* 金黃色文字 */
                 --bg-transport-time: #1a3b5c;
                 
-                --bg-acc: #2d1b14;
-                --border-acc: #4a2c1d;
+                --bg-acc: #3d241c; /* 深橘褐色 */
+                --border-acc: #5e3a2e;
                 --bg-acc-sub: #1e1e1e;
-                --text-acc-label: #ff8a50;
+                --text-acc-label: #ffab91; /* 淺橘色文字 */
                 
-                --bg-note: #333320;
-                --border-note: #555530;
+                --bg-note: #424228; /* 深黃綠色 */
+                --border-note: #666640;
             }
         }
 
-        /* 彈窗背景與置中 (確保 overlay 蓋滿螢幕並避開動態島) */
+        /* 彈窗背景 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(0,0,0,0.7);
+            background-color: rgba(0,0,0,0.6); /* 背景遮罩 */
+            backdrop-filter: blur(5px); /* 模糊背景 */
             display: flex; 
             align-items: center; 
             justify-content: center;
             z-index: 2000;
-            /* ✨ 關鍵修改：使用 env() 避開動態島/劉海 */
             padding: 20px;
             padding-top: calc(env(safe-area-inset-top) + 20px); 
             padding-bottom: max(20px, env(safe-area-inset-bottom));
             box-sizing: border-box;
         }
         
-        /* 彈窗本體 (Flex column 佈局) */
+        /* 彈窗本體 */
         .modal-content {
             background: var(--modal-bg);
             color: var(--text-color);
-            border-radius: 12px;
+            border-radius: 16px;
             width: 560px; 
             maxWidth: 100%; 
-            /* 限制高度確保不會超出螢幕 */
             max-height: 100%;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color); /* 增加邊框以區分深色背景 */
             overflow: hidden;
+            /* 讓 Modal 本身也有輕微毛玻璃 (視需求) */
+            backdrop-filter: blur(10px);
         }
         
-        /* 標題區 (固定) */
+        /* 標題區 */
         .modal-header {
-            padding: 20px 20px 10px 20px;
+            padding: 20px 20px 15px 20px;
             border-bottom: 1px solid var(--input-border);
             background: var(--modal-bg);
             z-index: 10;
         }
-        .modal-header h2 { margin: 0; font-size: 1.2rem; }
+        .modal-header h2 { margin: 0; font-size: 1.3rem; font-weight: 700; }
 
-        /* 內容捲動區 (可捲動) */
+        /* 內容區 */
         .modal-body {
             padding: 20px;
             overflow-y: auto; 
@@ -423,58 +423,69 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             -webkit-overflow-scrolling: touch; 
         }
 
-        /* 底部按鈕區 (固定) */
+        /* 底部按鈕區 */
         .modal-footer {
-            padding: 10px 20px 20px 20px;
+            padding: 15px 20px 20px 20px;
             border-top: 1px solid var(--input-border);
             background: var(--modal-bg);
             z-index: 10;
-            /* 確保底部按鈕區也有 safe area 保護 */
             padding-bottom: max(20px, calc(env(safe-area-inset-bottom) / 2));
         }
         
-        /* 響應式 */
-        @media (max-width: 600px) {
-            .modal-content { 
-                width: 100%; 
-                /* 手機版可以稍微高一點，利用 padding-top 避開動態島 */
-                height: auto; 
-            }
-            .form-row { flex-direction: column; gap: 10px; }
-        }
-
-        /* 輸入框樣式 */
+        /* 輸入框樣式 (統一使用變數) */
         input, select, textarea {
-            width: 100%; padding: 8px; font-size: 16px; 
+            width: 100%; padding: 10px; font-size: 16px; 
             border: 1px solid var(--input-border); 
             background-color: var(--input-bg);
             color: var(--text-color);
-            borderRadius: 6px;
+            border-radius: 8px;
             box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #007bff;
         }
         
-        /* 其他共用樣式 */
-        label { font-size: 12px; color: var(--text-sub); display: block; margin-bottom: 4px; fontWeight: bold; }
-        .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        label { font-size: 13px; color: var(--text-sub); display: block; margin-bottom: 6px; font-weight: 600; }
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
         .form-col { flex: 1; }
         .form-col-2 { flex: 2; }
-        .section-title { font-size: 13px; fontWeight: bold; color: #007bff; border-bottom: 1px solid var(--input-border); padding-bottom: 5px; margin: 15px 0 8px 0; }
+        
+        .section-title { 
+            font-size: 14px; font-weight: bold; color: #007bff; 
+            border-bottom: 1px solid var(--input-border); 
+            padding-bottom: 8px; margin: 20px 0 12px 0; 
+        }
+        
         .btn-group { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 10px; border: none; borderRadius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.8; }
         .btn-save { background: #007bff; color: white; }
         .btn-cancel { background: var(--btn-gray); color: var(--text-color); }
         .btn-delete { background: #dc3545; color: white; }
-        .transport-options { display: flex; margin-bottom: 10px; border-bottom: 1px solid var(--input-border); }
-        .transport-btn { flex: 1; padding: 8px; border: none; cursor: pointer; background: var(--btn-gray); color: var(--text-sub); font-size: 13px; }
-        .transport-btn.active { background: var(--modal-bg); border-bottom: 2px solid #007bff; color: #007bff; font-weight: bold; }
-        .section-transport { background: var(--bg-transport); padding: 12px; border-radius: 8px; border: 1px solid var(--border-transport); }
-        .section-transport-sub { background: var(--bg-transport-sub); padding: 8px; border-radius: 6px; margin-bottom: 10px; border: 1px solid var(--border-transport-sub); }
+        
+        .transport-options { display: flex; margin-bottom: 15px; background: var(--btn-gray); padding: 4px; border-radius: 8px; }
+        .transport-btn { flex: 1; padding: 8px; border: none; cursor: pointer; background: transparent; color: var(--text-sub); font-size: 13px; border-radius: 6px; font-weight: 500; }
+        .transport-btn.active { background: var(--modal-bg); color: #007bff; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        /* 各區塊樣式 */
+        .section-transport { background: var(--bg-transport); padding: 15px; border-radius: 10px; border: 1px solid var(--border-transport); }
+        .section-transport-sub { background: var(--bg-transport-sub); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-transport-sub); }
         .text-transport-sub { color: var(--text-transport-sub); }
-        .section-transport-time { background: var(--bg-transport-time); padding: 10px; border-radius: 6px; }
-        .section-acc { background: var(--bg-acc); padding: 12px; border-radius: 8px; border: 1px solid var(--border-acc); }
-        .section-acc-sub { background: var(--bg-acc-sub); padding: 8px; border-radius: 6px; border: 1px solid var(--border-transport); }
+        .section-transport-time { background: var(--bg-transport-time); padding: 12px; border-radius: 8px; }
+        
+        .section-acc { background: var(--bg-acc); padding: 15px; border-radius: 10px; border: 1px solid var(--border-acc); }
+        .section-acc-sub { background: var(--bg-acc-sub); padding: 10px; border-radius: 8px; border: 1px solid var(--border-transport); }
         .text-acc-label { color: var(--text-acc-label); }
-        .section-note { background: var(--bg-note); padding: 12px; border-radius: 8px; border: 1px solid var(--border-note); }
+        
+        .section-note { background: var(--bg-note); padding: 15px; border-radius: 10px; border: 1px solid var(--border-note); }
+
+        @media (max-width: 600px) {
+            .modal-content { width: 100%; height: auto; border-radius: 16px 16px 0 0; position: absolute; bottom: 0; }
+            .form-row { flex-direction: column; gap: 10px; }
+            .modal-overlay { padding: 0; align-items: flex-end; }
+        }
       `}</style>
 
       <div className="modal-content">
@@ -487,7 +498,8 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         <div className="modal-body">
             <form id="edit-form" onSubmit={handleSubmit}>
             
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: '15px' }}>
+                <label>類型</label>
                 <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                     {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
@@ -496,7 +508,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             {/* ================= 筆記模式 (Note) ================= */}
             {formData.category === 'note' && (
                 <div className="section-note">
-                    <div className="section-title">📝 筆記與附件</div>
+                    <div className="section-title" style={{marginTop:0}}>📝 筆記與附件</div>
                     <div style={{marginBottom:'10px'}}>
                         <label>標題</label>
                         <input placeholder="標題 (例如: 電子機票)" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
@@ -590,7 +602,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     </div>
                     <div>
                         <label>時長</label>
-                        <input value={details.duration_text} onChange={e => setDetails({...details, duration_text: e.target.value})} style={{background:'var(--input-bg)'}} />
+                        <input value={details.duration_text} onChange={e => setDetails({...details, duration_text: e.target.value})} />
                     </div>
                 </div>
 
@@ -620,7 +632,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             {/* ================= 住宿區塊 ================= */}
             {formData.category === 'accommodation' && (
                 <div className="section-acc">
-                    <div className="section-title">🏨 住宿詳情</div>
+                    <div className="section-title" style={{marginTop:0}}>🏨 住宿詳情</div>
                     <div style={{marginBottom:'10px'}}>
                         <label>📍 搜尋飯店</label>
                         <Autocomplete onLoad={setAutocompleteHotel} onPlaceChanged={onHotelPlaceChanged}><input placeholder="輸入名稱 (Google)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} /></Autocomplete>
@@ -666,7 +678,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             {!['transport', 'accommodation', 'note'].includes(formData.category) && (
                 <>
                 <div style={{ marginBottom: '10px' }}><input placeholder="名稱" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required /></div>
-                <div style={{border: '1px solid var(--input-border)', padding:'10px', borderRadius:'6px', marginBottom: '10px'}}>
+                <div style={{border: '1px solid var(--input-border)', padding:'15px', borderRadius:'10px', marginBottom: '15px'}}>
                     <label>📍 地點搜尋</label>
                     <Autocomplete onLoad={setAutocompleteDep} onPlaceChanged={onDepPlaceChanged}>
                         <input placeholder="搜尋地點 (例如: 清水寺)" value={formData.location_name} onChange={e => setFormData({...formData, location_name: e.target.value})} />
@@ -687,13 +699,14 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     <div className="form-col"><label>開始</label><input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} /></div>
                     <div className="form-col"><label>結束</label><input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} /></div>
                 </div>
-                <input type="number" placeholder="費用" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} />
+                <div style={{marginTop:'10px'}}><label>費用</label><input type="number" placeholder="費用" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} /></div>
                 </>
             )}
 
             {formData.category !== 'note' && (
-                <div style={{marginTop:'10px'}}>
-                    <textarea placeholder="備註" rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} style={{resize:'vertical'}} />
+                <div style={{marginTop:'15px'}}>
+                    <label>備註</label>
+                    <textarea placeholder="備註..." rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} style={{resize:'vertical'}} />
                 </div>
             )}
             </form>

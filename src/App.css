@@ -1,6 +1,7 @@
-/* ================= 🎨 1. CSS 變數定義 (加入透明度與毛玻璃設定) ================= */
+/* ================= 🎨 1. CSS 變數定義 (自動跟隨系統設定) ================= */
+
+/* --- 預設 (淺色模式變數) --- */
 :root {
-  /* ☀️ 淺色模式 (Light Mode) */
   /* 背景改為半透明，讓底圖透出來 */
   --bg-body: rgba(255, 255, 255, 0.7); 
   --bg-sidebar: rgba(255, 255, 255, 0.6);
@@ -23,11 +24,16 @@
   --bg-transport: linear-gradient(to right, rgba(240, 248, 255, 0.9), rgba(255, 255, 255, 0.9));
   --bg-acc: linear-gradient(to right, rgba(255, 245, 240, 0.9), rgba(255, 255, 255, 0.9));
   --bg-note: rgba(255, 253, 231, 0.95);
+  
+  /* 選中天數 */
+  --bg-day-selected: #e3f2fd;
+  --border-day-selected: #007bff;
+  --text-day-selected: #007bff;
 }
 
+/* --- 深色模式 (僅當系統設定為深色時觸發) --- */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* 🌙 深色模式 (Dark Mode) */
     /* 背景改為深色半透明 */
     --bg-body: rgba(18, 18, 18, 0.7);
     --bg-sidebar: rgba(30, 30, 30, 0.6);
@@ -49,6 +55,10 @@
     --bg-transport: linear-gradient(to right, rgba(13, 27, 42, 0.9), rgba(30, 30, 30, 0.9));
     --bg-acc: linear-gradient(to right, rgba(45, 27, 20, 0.9), rgba(30, 30, 30, 0.9));
     --bg-note: rgba(51, 51, 32, 0.95);
+    
+    --bg-day-selected: rgba(56, 189, 248, 0.15); 
+    --border-day-selected: #60a5fa;
+    --text-day-selected: #60a5fa;
   }
 }
 

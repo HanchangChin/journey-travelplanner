@@ -12,6 +12,10 @@ import {
 import CreateTrip from './CreateTrip'
 import TripDetails from './TripDetails'
 
+// 引入新元件
+import ShareModal from './ShareModal'
+import PublicTripDetails from './PublicTripDetails'
+
 // 初始化 React Query 客戶端
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +27,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// --- 1. Login Page (加入毛玻璃效果) ---
+// --- 1. Login Page ---
 function Login({ session }) {
   const navigate = useNavigate()
   useEffect(() => {
@@ -33,11 +37,10 @@ function Login({ session }) {
   if (!session) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'transparent' }}>
-        {/* ✨ 修改：背景改為半透明白 + 毛玻璃，讓背景圖透出 */}
         <div style={{ 
             width: '100%', maxWidth: '400px', padding: '40px', 
-            background: 'rgba(255, 255, 255, 0.85)', // 半透明白
-            backdropFilter: 'blur(12px)', // 毛玻璃效果
+            background: 'rgba(255, 255, 255, 0.85)', 
+            backdropFilter: 'blur(12px)', 
             borderRadius: '12px', 
             boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
             border: '1px solid rgba(255, 255, 255, 0.3)'
@@ -56,7 +59,7 @@ function Login({ session }) {
   return null
 }
 
-// --- 2. Home Page (加入毛玻璃效果) ---
+// --- 2. Home Page ---
 function Home({ session }) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingTrip, setEditingTrip] = useState(null)
@@ -101,23 +104,21 @@ function Home({ session }) {
   const handleTripDeleted = () => { queryClient.invalidateQueries(['trips']); setShowCreateModal(false); setEditingTrip(null) }
   const handleLogout = async () => { await supabase.auth.signOut(); queryClient.clear() }
 
-  // ✨ TripCard 修改：半透明深色背景 + 毛玻璃
   const TripCard = ({ trip, isPast }) => (
     <div 
       onClick={() => navigate(`/trip/${trip.id}`)}
       className="card"
       style={{ 
         cursor: 'pointer', 
-        opacity: isPast ? 0.8 : 1, // 封存的稍微透明一點
+        opacity: isPast ? 0.8 : 1, 
         borderLeft: isPast ? '4px solid #666' : '4px solid #646cff',
         position: 'relative',
-        // ✨ 關鍵修改：使用 rgba 黑色半透明
         backgroundColor: isPast ? 'rgba(30, 30, 30, 0.6)' : 'rgba(40, 40, 40, 0.7)', 
-        backdropFilter: 'blur(10px)', // 毛玻璃
+        backdropFilter: 'blur(10px)', 
         marginBottom: '15px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        border: '1px solid rgba(255,255,255,0.1)', // 微弱邊框增加質感
-        color: '#eee' // 強制文字顏色為淺色
+        border: '1px solid rgba(255,255,255,0.1)', 
+        color: '#eee' 
       }}
     >
       <button 
@@ -147,7 +148,6 @@ function Home({ session }) {
 
   return (
     <div className="container">
-      {/* 頂部資訊列：加入文字陰影，確保在亮色背景圖上也看得清楚 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
         <div>
           <h1 style={{ margin: 0, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>🌍 Journey Planner</h1>
@@ -181,7 +181,6 @@ function Home({ session }) {
 
       {showCreateModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
-          {/* ✨ Modal 也是半透明毛玻璃 */}
           <div style={{ background: 'rgba(30, 30, 30, 0.9)', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '550px', position: 'relative', border: '1px solid #444', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)' }}>
             <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', fontSize: '28px', color: '#888' }}>×</button>
             <h2 style={{ marginTop: 0, textAlign: 'center', color: 'white' }}>
@@ -202,7 +201,7 @@ function Home({ session }) {
   )
 }
 
-// --- 3. 主程式路由 (整合背景) ---
+// --- 3. 主程式路由 ---
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -218,7 +217,6 @@ export default function App() {
       setLoading(false)
     })
     
-    // 讀取背景圖
     const savedBg = localStorage.getItem('custom_bg')
     if (savedBg) setBgImage(savedBg)
 
@@ -248,7 +246,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* ✨ 全域背景層 */}
+      {/* 全域背景層 */}
       <div className="global-background" style={{ backgroundImage: bgImage ? `url(${bgImage})` : 'none' }}>
           {!bgImage && (
               <>
@@ -258,7 +256,6 @@ export default function App() {
               </>
           )}
           <div className="noise-overlay"></div>
-          {/* ✨ 加深遮罩，確保文字可讀 */}
           <div className="dark-overlay"></div>  
       </div>
 
@@ -270,23 +267,22 @@ export default function App() {
           </div>
       )}
 
-      {/* ✨ CSS 設定 */}
+      {/* CSS 設定：包含背景與形狀動畫 */}
       <style>{`
           .global-background {
               position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
               z-index: -1;
-              background-color: #0a0a12; /* 深色底 */
+              background-color: #0a0a12;
               background-size: cover;
               background-position: center;
               overflow: hidden;
               transition: background-image 0.5s ease;
           }
           
-          /* 遮罩層：讓照片變暗，文字才看得清楚 */
           .dark-overlay {
               position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-              background: rgba(0, 0, 0, 0.4); /* 40% 黑色遮罩 */
-              backdrop-filter: blur(3px); /* 輕微模糊背景圖 */
+              background: rgba(0, 0, 0, 0.4);
+              backdrop-filter: blur(3px);
           }
           
           .noise-overlay {
@@ -330,6 +326,7 @@ export default function App() {
           <Route path="/" element={!session ? <Navigate to="/login" /> : <Home session={session} />} />
           <Route path="/login" element={<Login session={session} />} />
           <Route path="/trip/:tripId" element={!session ? <Navigate to="/login" /> : <TripDetails />} />
+          <Route path="/share/:shareToken" element={<PublicTripDetails />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

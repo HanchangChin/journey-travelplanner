@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import TripSettingsModal from './TripSettingsModal'
 import EditItemModal from './EditItemModal'
+import ShareModal from './ShareModal'
 import { useJsApiLoader } from '@react-google-maps/api'
 
 // ✨ React Query Imports
@@ -24,9 +25,10 @@ export default function TripDetails() {
   const [days, setDays] = useState([])
   const [items, setItems] = useState([]) 
   const [selectedDay, setSelectedDay] = useState(null)
-  
+   
   const [showSettings, setShowSettings] = useState(false)
   const [showItemModal, setShowItemModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
@@ -107,7 +109,7 @@ export default function TripDetails() {
       setTrip(cachedData.trip)
       setDays(cachedData.days)
       setItems(cachedData.items)
-      
+       
       if (!selectedDay && cachedData.days?.length > 0) {
         setSelectedDay(cachedData.days[0])
       } else if (selectedDay) {
@@ -121,7 +123,7 @@ export default function TripDetails() {
       await supabase.from('trip_days').update({ title: e.target.value }).eq('id', selectedDay.id) 
       queryClient.invalidateQueries(['tripDetails', tripId])
   }
-  
+   
   const handleTitleChange = (e) => {
     const newTitle = e.target.value; setSelectedDay({ ...selectedDay, title: newTitle });
     setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
@@ -142,7 +144,7 @@ export default function TripDetails() {
     const oldIndex = currentDayItems.findIndex((item) => item.id === active.id);
     const newIndex = currentDayItems.findIndex((item) => item.id === over.id);
     const newOrder = arrayMove(currentDayItems, oldIndex, newIndex);
-    
+     
     const otherItems = items.filter(i => i.trip_day_id !== selectedDay.id);
     setItems([...otherItems, ...newOrder]);
 
@@ -304,167 +306,284 @@ export default function TripDetails() {
 
   return (
     <div className="container trip-details-page">
-      {/* ✨ CSS 樣式定義：修正深色模式配色 */}
+      {/* ✨ CSS 優化：增強對比度、毛玻璃質感與卡片清晰度 */}
       <style>{`
-        /* ================= 🎨 變數定義 (優化配色) ================= */
+        /* ================= 🎨 變數定義 (優化版) ================= */
         :root {
-            /* 淺色模式 (保持原樣) */
-            --bg-body: #ffffff;
-            --bg-sidebar: #ffffff;
-            --bg-content: #ffffff;
-            --bg-card: #ffffff;
-            --bg-input: #ffffff;
-            --text-main: #333333;
-            --text-sub: #666666;
-            --text-muted: #888888;
-            --border-color: #e0e0e0;
+            /* 預設使用 Glass 效果 */
+            --glass-blur: blur(16px);
+            --border-radius-lg: 16px;
+            --border-radius-md: 12px;
+            
+            /* 顏色變數：針對深色背景圖優化 */
+            /* 側邊欄背景：稍微透明的白色，增加對比 */
+            --bg-sidebar: rgba(255, 255, 255, 0.25);
+            
+            /* 內容卡片背景 */
+            --bg-content-header: rgba(255, 255, 255, 0.6);
+            --bg-card: rgba(255, 255, 255, 0.85);
+            
+            /* 文字顏色 */
+            --text-main: #2c3e50;
+            --text-sub: #546e7a;
+            --text-muted: #7f8c8d;
+            
+            --border-light: rgba(255, 255, 255, 0.4);
+            --border-focus: #007bff;
             
             --primary: #007bff;
-            --primary-bg: #e3f2fd; /* 淺藍色背景 */
-            --primary-border: #007bff;
+            --primary-hover: #0056b3;
             
-            --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            --header-bg-day: #f8f9fa;
-            --input-border: #cccccc;
+            /* 天數列表項目樣式 */
+            --day-item-bg: rgba(255, 255, 255, 0.4);
+            --day-item-bg-hover: rgba(255, 255, 255, 0.6);
+            --day-item-bg-active: #ffffff;
+            --day-item-shadow-active: 0 8px 20px rgba(0,0,0,0.15);
+            --day-item-text-active: #007bff;
             
-            /* 特殊變數：選中天數背景 */
-            --bg-day-selected: #e3f2fd;
-            --border-day-selected: #007bff;
-            --text-day-selected: #007bff;
+            --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                /* 深色模式 (重新設計) */
-                --bg-body: #121212;
-                --bg-sidebar: #1e1e1e;
-                --bg-content: #121212;
-                --bg-card: #1e1e1e;
-                --bg-input: #2a2a2a;
-                --text-main: #e0e0e0;
-                --text-sub: #aaaaaa;
-                --text-muted: #777777;
-                --border-color: #333333;
-                
-                --primary: #646cff; /* 稍微柔和的藍紫色 */
-                --primary-bg: #1a3b5c;
-                --primary-border: #646cff;
-                
-                --card-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                --header-bg-day: #1e1e1e;
-                --input-border: #444444;
-
-                /* 特殊變數：選中天數背景 (修正為半透明藍，而非亮白) */
-                --bg-day-selected: rgba(56, 189, 248, 0.15); 
-                --border-day-selected: #60a5fa;
-                --text-day-selected: #60a5fa;
-            }
-        }
-
-        /* ================= 📐 全局設定 ================= */
+        /* 頁面基本布局 */
         .trip-details-page {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             color: var(--text-main);
-            background-color: var(--bg-body);
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-        
-        a { color: var(--text-sub); text-decoration: none; }
-        input { 
-            background: var(--bg-input); 
-            color: var(--text-main); 
-            border: 1px solid var(--border-color); 
-            font-size: 16px; 
+            padding-bottom: 50px;
         }
 
-        /* ================= 📐 佈局 (Responsive) ================= */
-        .layout-container { display: flex; gap: 20px; min-height: 600px; }
+        .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; }
+
+        /* --- 側邊欄 (Left Sidebar) --- */
         .sidebar { 
-            width: 220px; border-right: 1px solid var(--border-color); padding-right: 10px; 
-            overflow-y: auto; max-height: 80vh; position: sticky; top: 20px; 
-            background: var(--bg-sidebar);
+            width: 240px; 
+            padding: 15px;
+            /* 毛玻璃容器 */
+            background: var(--bg-sidebar); 
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--border-radius-lg);
+            
+            overflow-y: auto; 
+            max-height: 80vh; 
+            position: sticky; 
+            top: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            
+            /* 隱藏捲軸但可捲動 */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.5) transparent;
         }
-        .content-area { flex: 1; padding-left: 10px; }
-        
-        /* ⬇️ Day Item 樣式 */
+
         .day-item { 
-            padding: 12px 10px; 
+            padding: 14px 16px; 
             cursor: pointer; 
-            margin-bottom: 5px; 
-            border-radius: 8px; 
-            transition: all 0.2s; 
-            border: 1px solid transparent; /* 預留邊框位置 */
+            margin-bottom: 10px; 
+            border-radius: var(--border-radius-md); 
+            transition: all 0.25s ease; 
+            
+            /* 預設狀態：半透明白，確保文字可讀 */
+            background: var(--day-item-bg);
+            border: 1px solid transparent;
+            color: var(--text-main);
         }
         
-        /* ✨ 新增：選中狀態的樣式 */
+        .day-item:hover { 
+            background: var(--day-item-bg-hover);
+            transform: translateY(-1px);
+        }
+
+        /* ✨ 關鍵修改：選中狀態更加立體明顯 */
         .day-item-active {
-            background-color: var(--bg-day-selected) !important;
-            border-color: var(--border-day-selected) !important;
+            background-color: var(--day-item-bg-active) !important;
+            color: var(--day-item-text-active) !important;
+            box-shadow: var(--day-item-shadow-active);
+            border-left: 5px solid var(--primary); /* 左側藍色指示條 */
         }
+        
         .day-item-active .day-item-text-title {
-            color: var(--text-day-selected) !important;
+            color: var(--primary);
+            font-weight: 800;
+        }
+        
+        .day-item-active .day-item-text-date {
+             color: var(--text-sub);
         }
 
-        .day-item:hover { background-color: var(--border-color); }
-        .day-item-text-title { font-weight: bold; color: var(--text-main); font-size: 1rem; }
-        .day-item-text-date { font-size: 13px; color: var(--text-sub); margin-top: 2px; }
+        .day-item-text-title { font-weight: 600; font-size: 1.05rem; display: flex; justify-content: space-between; }
+        .day-item-text-date { font-size: 0.85rem; color: var(--text-sub); margin-top: 4px; opacity: 0.9; }
 
-        /* Day Header */
+        /* --- 右側內容區 (Content Area) --- */
+        .content-area { flex: 1; }
+        
+        /* 每日標題 Header */
         .day-header { 
-            margin-bottom: 20px; 
-            padding: 15px; 
-            background: var(--header-bg-day); 
-            border-radius: 10px; 
-            border: 1px solid var(--border-color); 
+            margin-bottom: 24px; 
+            padding: 20px 24px; 
+            background: var(--bg-content-header); 
+            backdrop-filter: var(--glass-blur); 
+            border-radius: var(--border-radius-lg); 
+            border: 1px solid var(--border-light);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
+        
+        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.8rem; color: var(--text-main); font-weight: 800; letter-spacing: -0.5px; }
+        
+        /* 標題輸入框優化 */
         .day-title-input { 
-            font-size: 1.5rem; 
+            font-size: 1.2rem; 
             padding: 8px 12px; 
-            border-radius: 6px; 
-            flex: 1; min-width: 0; 
-            border: 1px solid var(--border-color); /* 明確邊框 */
+            border-radius: 8px; 
+            flex: 1; 
+            min-width: 0; 
+            border: 1px solid rgba(0,0,0,0.1); 
+            background: rgba(255,255,255,0.5);
+            color: var(--text-main);
+            transition: all 0.2s;
         }
-        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: bold; }
-        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.5rem; color: var(--text-main); }
+        .day-title-input:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+        }
 
-        .card-hover { cursor: pointer; transition: transform 0.1s; }
-        .card-hover:active { transform: scale(0.98); }
+        /* 卡片通用樣式優化 */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid rgba(255,255,255,0.5);
+            list-style: none; /* remove li dots */
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.08);
+        }
 
-        /* --- 手機版樣式 (Max-width: 768px) --- */
+        /* Transport Card specific */
+        .card-header { padding: 10px 15px; font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; color: white; }
+        .header-blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .header-green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #1f5f45; }
+        .header-orange { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #5d4037; }
+        
+        .card-body { padding: 15px; }
+        
+        /* Transport Layout */
+        .transport-body { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .time-col { flex: 1; min-width: 80px; text-align: center; }
+        .duration-col { flex: 1.5; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        
+        .time-text { font-size: 1.2rem; font-weight: bold; color: var(--text-main); position: relative; }
+        .offset-text { font-size: 0.7rem; color: #e74c3c; font-weight: bold; position: absolute; top: -5px; right: -10px; }
+        .place-text { font-size: 0.9rem; color: var(--text-sub); margin-top: 4px; font-weight: 500; }
+        .terminal-text { font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+        
+        .arrow-graphic { color: #ccc; font-size: 0.8rem; margin: 2px 0; letter-spacing: -1px; }
+        .duration-text { font-weight: bold; font-size: 0.9rem; }
+        .text-blue { color: #007bff; }
+        .text-green { color: #28a745; }
+        .sub-info { font-size: 0.75rem; color: var(--text-muted); }
+        .text-red { color: #dc3545; }
+        .cost-text { margin-top: 5px; font-size: 0.85rem; font-weight: bold; color: #555; background: #eee; padding: 2px 8px; border-radius: 10px; }
+
+        /* Accommodation Layout */
+        .acc-info-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .acc-name { font-size: 1.1rem; font-weight: bold; color: var(--text-main); }
+        .acc-address { font-size: 0.85rem; color: var(--text-sub); margin-top: 3px; }
+        .acc-phone { font-size: 0.85rem; color: var(--text-muted); }
+        .acc-dates { background: rgba(255,255,255,0.5); padding: 8px; border-radius: 6px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 4px; border: 1px dashed #ddd; }
+        .label-orange { color: #e67e22; font-weight: bold; }
+        .acc-cost-col { text-align: right; }
+        .tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; margin-left: 5px; }
+        .tag-green { background: #28a745; }
+        .tag-red { background: #dc3545; }
+        
+        /* General Layout */
+        .general-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; }
+        .general-left { display: flex; align-items: flex-start; gap: 12px; }
+        .category-icon { font-size: 1.5rem; background: #f0f2f5; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .general-name { font-weight: bold; font-size: 1rem; color: var(--text-main); }
+        .general-sub { font-size: 0.85rem; color: var(--text-sub); margin-top: 2px; }
+        .opening-hours-tag { font-size: 0.75rem; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+        
+        .general-right { text-align: right; min-width: 80px; }
+        .time-display { font-weight: bold; color: var(--text-main); font-size: 0.95rem; }
+        .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 2px 0; }
+        .duration-tag { font-size: 0.7rem; background: #e2e6ea; padding: 1px 5px; border-radius: 4px; color: #555; }
+        .arrow-small { font-size: 0.7rem; color: #ccc; }
+
+        /* Note Layout */
+        .note-card { padding: 15px; border-left: 4px solid #ffc107; }
+        .note-title { font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
+        .note-content { font-size: 0.9rem; color: var(--text-sub); white-space: pre-wrap; }
+        .note-attachment { margin-top: 8px; }
+        .attachment-link { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ddd; padding: 6px 10px; border-radius: 20px; text-decoration: none; color: #555; font-size: 0.85rem; transition: background 0.2s; }
+        .attachment-link:hover { background: #f8f9fa; border-color: #ccc; }
+        .attach-arrow { font-size: 0.7rem; color: #999; }
+
+        /* Simple Card */
+        .simple-card { cursor: pointer; padding: 12px 15px; background: rgba(255,255,255,0.7); }
+        .simple-card-content { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-sub); }
+        .separator { color: #ccc; }
+        .icon-text { display: flex; align-items: center; gap: 5px; font-weight: 500; }
+        .location-flow { display: flex; align-items: center; gap: 5px; }
+        .arrow { color: #999; font-size: 0.8rem; }
+
+        /* RWD: Mobile (Max 768px) */
         @media (max-width: 768px) {
-          .layout-container { flex-direction: column; }
+          .layout-container { flex-direction: column; gap: 10px; }
+          
+          /* Mobile Sidebar: Horizontal Scroll */
           .sidebar { 
             width: 100%; 
             border-right: none; 
-            border-bottom: 1px solid var(--border-color); 
-            padding-right: 0; 
-            padding-bottom: 2px; 
+            border-bottom: 1px solid var(--border-light); 
+            padding: 10px;
             display: flex; 
             overflow-x: auto; 
             white-space: nowrap;
             position: relative;
             top: 0;
-            max-height: auto;
-            background: var(--bg-body);
+            background: var(--bg-sidebar);
+            box-shadow: none;
+            -webkit-overflow-scrolling: touch; /* smooth scroll ios */
           }
-          .content-area { padding-left: 0; margin-top: 10px; }
           
           .day-item { 
             flex: 0 0 auto;
             width: auto; 
-            min-width: 60px; 
+            min-width: 80px; 
             text-align: center;
             margin-bottom: 0;
-            margin-right: 5px; 
-            padding: 4px 6px; 
+            margin-right: 8px; 
+            padding: 8px 12px;
+            display: block; /* reset flex */
           }
-          .day-item-text-title { font-size: 12px; line-height: 1.2; }
-          .day-item-text-date { font-size: 10px; margin-top: 1px; }
+          
+          .day-item-active {
+              border-left: none;
+              border-bottom: 3px solid var(--primary);
+              transform: scale(1.02);
+          }
+          
+          .day-item-text-title { font-size: 0.9rem; display: block; text-align: center; }
+          .day-item-text-date { font-size: 0.75rem; margin-top: 2px; text-align: center; }
 
-          .day-header { padding: 8px 10px; margin-bottom: 10px; }
-          .day-header-date { font-size: 12px; margin-bottom: 4px; }
-          .day-header-h2 { font-size: 1.1rem; }
-          .day-title-input { font-size: 1rem; padding: 4px 8px; }
+          .content-area { padding: 0 5px; }
+          .day-header { padding: 15px; margin-bottom: 15px; }
+          .day-header-h2 { font-size: 1.4rem; }
+          .day-title-input { font-size: 1rem; padding: 6px; }
+          
+          /* Card adjustments for mobile */
+          .transport-body { flex-direction: column; align-items: stretch; gap: 15px; }
+          .duration-col { flex-direction: row; justify-content: center; gap: 10px; padding: 5px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; }
+          .arrow-graphic { display: none; }
+          .time-col { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+          .place-text { margin-top: 0; }
         }
       `}</style>
 
@@ -485,17 +604,39 @@ export default function TripDetails() {
         />
       )}
 
+      {/* ✨ 3. 加入 ShareModal (當 showShareModal 為 true 時顯示) */}
+      {showShareModal && (
+        <ShareModal 
+            trip={trip} 
+            onClose={() => setShowShareModal(false)} 
+            onUpdate={() => queryClient.invalidateQueries(['tripDetails', tripId])} 
+        />
+      )}
+
       {/* Header Info */}
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', display:'inline-block', marginBottom:'10px' }}>← 返回列表</Link>
-        <button onClick={() => setShowSettings(true)} style={{ padding: '8px 15px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius:'20px', cursor:'pointer', color: 'var(--text-main)' }}>⚙️ 旅行設定</button>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding: '0 5px'}}>
+        <Link to="/" style={{ textDecoration: 'none', color: '#fff', display:'inline-flex', alignItems: 'center', marginBottom:'15px', fontWeight: 'bold', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>← 返回列表</Link>
+        <div style={{display:'flex', gap:'10px'}}>
+            {/* ✨ 4. 新增分享按鈕 */}
+            <button 
+                onClick={() => setShowShareModal(true)} 
+                style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius:'20px', cursor:'pointer', color: '#fff', backdropFilter: 'var(--glass-blur)', fontWeight: '500', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+                onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+            >
+                🔗 分享
+            </button>
+            <button onClick={() => setShowSettings(true)} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius:'20px', cursor:'pointer', color: '#fff', backdropFilter: 'var(--glass-blur)', fontWeight: '500' }}>⚙️ 設定</button>
+        </div>
       </div>
-      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '10px' }}>
-        <h1 style={{ margin: '0 0 5px 0', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>{trip.title}</h1>
-        <div style={{ color: 'var(--text-sub)', fontSize: '14px', display:'flex', flexWrap: 'wrap', gap: '15px' }}>
-          <span>📅 {trip.start_date} ~ {trip.end_date}</span>
-          <span>💰 預算: ${trip.budget_goal}</span>
-          <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      
+      {/* 標題區域，增加文字陰影以適應深色背景 */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.3)', paddingBottom: '15px', marginBottom: '20px', paddingLeft: '5px' }}>
+        <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>{trip.title}</h1>
+        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', display:'flex', flexWrap: 'wrap', gap: '20px', fontWeight: '500' }}>
+          <span style={{display:'flex', alignItems:'center', gap:'5px'}}>📅 {trip.start_date} ~ {trip.end_date}</span>
+          <span style={{display:'flex', alignItems:'center', gap:'5px'}}>💰 預算: ${trip.budget_goal}</span>
+          <span style={{ display: 'inline-flex', alignItems:'center', gap:'5px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             👫 {trip.trip_members?.length} 人
           </span>
         </div>
@@ -508,11 +649,10 @@ export default function TripDetails() {
             <div 
               key={day.id} 
               onClick={() => setSelectedDay(day)} 
-              // ✨ 修正：使用 class 來控制樣式，不使用 inline style，以支援 dark mode 變數
               className={`day-item ${selectedDay?.id === day.id ? 'day-item-active' : ''}`}
             >
-              <div className="day-item-text-title">Day {day.day_number} {day.title ? <span style={{marginLeft:'3px'}}>{day.title}</span> : ''}</div>
-              <div className="day-item-text-date">{day.day_date} <span style={{color: '#ff9800'}}>({getWeekday(day.day_date)})</span></div>
+              <div className="day-item-text-title">Day {day.day_number} {day.title ? <span style={{fontSize:'0.9em', opacity: 0.8}}>{day.title}</span> : ''}</div>
+              <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
             </div>
           ))}
         </div>
@@ -523,16 +663,16 @@ export default function TripDetails() {
             <>
               {/* 每日重點 Header */}
               <div className="day-header">
-                <div className="day-header-date">{selectedDay.day_date} <span style={{color: '#ff9800'}}>({getWeekday(selectedDay.day_date)})</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="day-header-date">{selectedDay.day_date} <span style={{color: 'var(--primary)'}}>({getWeekday(selectedDay.day_date)})</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <h2 className="day-header-h2">Day {selectedDay.day_number}</h2>
-                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="重點 (例: 移動日)" />
+                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="輸入當日重點 (例: 移動日)" />
                 </div>
               </div>
-              
+               
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                     {currentDayItems.map(item => (
                         <SortableItem key={item.id} id={item.id}>
                           {(() => {
@@ -546,8 +686,10 @@ export default function TripDetails() {
                   </ul>
                 </SortableContext>
               </DndContext>
-              
-              <button onClick={openNewItemModal} style={{ width: '100%', padding: '15px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px' }}><span>➕</span> 新增行程</button>
+               
+              <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(0,123,255,0.3)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
+                <span>➕</span> 新增行程
+              </button>
             </>
           )}
         </div>
