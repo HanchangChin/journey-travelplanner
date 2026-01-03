@@ -263,7 +263,7 @@ export default function TripDetails() {
       <li onClick={() => openEditItemModal(item)} className="card general-card">
         <div className="general-left">
           <div className="category-icon">{getCategoryIcon(item.category)}</div>
-          <div>
+          <div className="general-content">
             <div className="general-name">{item.name}</div>
             {item.address && <div className="general-sub">📍 {item.address}</div>}
             {item.phone && <div className="general-sub">📞 {item.phone}</div>}
@@ -306,49 +306,56 @@ export default function TripDetails() {
 
   return (
     <div className="container trip-details-page">
-      {/* ✨ CSS 優化：增強對比度、毛玻璃質感與卡片清晰度 */}
+      {/* ✨ CSS 修正：通用型灰底風格 (Universal Gray Theme) */}
       <style>{`
-        /* ================= 🎨 變數定義 (優化版) ================= */
+        /* ================= 🎨 變數定義：灰底風格 ================= */
         :root {
-            /* 預設使用 Glass 效果 */
-            --glass-blur: blur(16px);
+            /* 基礎背景：使用舒適的淺灰色，類似 Trello/Notion 的 Dashboard 風格 */
+            --bg-body: #F3F4F6; 
+            
+            /* 側邊欄：白色帶一點透明，與灰底區隔 */
+            --bg-sidebar: rgba(255, 255, 255, 0.85);
+            
+            /* 內容區域標頭：純白 */
+            --bg-content-header: #ffffff;
+            
+            /* 卡片背景：強制純白，確保對比度最高 */
+            --bg-card: #ffffff; 
+            
+            /* 文字顏色：深灰至黑色，閱讀性最佳 */
+            --text-main: #1F2937; /* 接近黑色 */
+            --text-sub: #4B5563;  /* 深灰色 */
+            --text-muted: #9CA3AF; /* 淺灰色 */
+            
+            /* 邊框線條 */
+            --border-light: #E5E7EB;
+            
+            /* 主色調 */
+            --primary: #2563EB; /* 鮮豔的藍色，在灰底上很清楚 */
+            --primary-bg: #DBEAFE;
+            
+            /* 天數選單 */
+            --day-item-bg: transparent;
+            --day-item-bg-hover: #E5E7EB;
+            --day-item-bg-active: #ffffff;
+            
+            /* 陰影：增加立體感 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            
+            --glass-blur: blur(8px);
             --border-radius-lg: 16px;
             --border-radius-md: 12px;
-            
-            /* 顏色變數：針對深色背景圖優化 */
-            /* 側邊欄背景：稍微透明的白色，增加對比 */
-            --bg-sidebar: rgba(255, 255, 255, 0.25);
-            
-            /* 內容卡片背景 */
-            --bg-content-header: rgba(255, 255, 255, 0.6);
-            --bg-card: rgba(255, 255, 255, 0.85);
-            
-            /* 文字顏色 */
-            --text-main: #2c3e50;
-            --text-sub: #546e7a;
-            --text-muted: #7f8c8d;
-            
-            --border-light: rgba(255, 255, 255, 0.4);
-            --border-focus: #007bff;
-            
-            --primary: #007bff;
-            --primary-hover: #0056b3;
-            
-            /* 天數列表項目樣式 */
-            --day-item-bg: rgba(255, 255, 255, 0.4);
-            --day-item-bg-hover: rgba(255, 255, 255, 0.6);
-            --day-item-bg-active: #ffffff;
-            --day-item-shadow-active: 0 8px 20px rgba(0,0,0,0.15);
-            --day-item-text-active: #007bff;
-            
-            --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
-        /* 頁面基本布局 */
+        /* 全頁設定：強制背景色，不使用圖片 */
         .trip-details-page {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             color: var(--text-main);
-            padding-bottom: 50px;
+            background-color: var(--bg-body); /* ✨ 強制灰底 */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; }
@@ -356,234 +363,170 @@ export default function TripDetails() {
         /* --- 側邊欄 (Left Sidebar) --- */
         .sidebar { 
             width: 240px; 
-            padding: 15px;
-            /* 毛玻璃容器 */
+            padding: 16px;
             background: var(--bg-sidebar); 
             backdrop-filter: var(--glass-blur);
             border: 1px solid var(--border-light);
             border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-sm);
             
             overflow-y: auto; 
             max-height: 80vh; 
             position: sticky; 
             top: 20px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            
-            /* 隱藏捲軸但可捲動 */
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.5) transparent;
         }
 
         .day-item { 
-            padding: 14px 16px; 
+            padding: 12px 16px; 
             cursor: pointer; 
-            margin-bottom: 10px; 
+            margin-bottom: 8px; 
             border-radius: var(--border-radius-md); 
-            transition: all 0.25s ease; 
-            
-            /* 預設狀態：半透明白，確保文字可讀 */
+            transition: all 0.2s ease; 
             background: var(--day-item-bg);
+            color: var(--text-sub);
             border: 1px solid transparent;
-            color: var(--text-main);
         }
         
         .day-item:hover { 
             background: var(--day-item-bg-hover);
-            transform: translateY(-1px);
+            color: var(--text-main);
         }
 
-        /* ✨ 關鍵修改：選中狀態更加立體明顯 */
+        /* 選中狀態：變成白色卡片，浮起來 */
         .day-item-active {
             background-color: var(--day-item-bg-active) !important;
-            color: var(--day-item-text-active) !important;
-            box-shadow: var(--day-item-shadow-active);
-            border-left: 5px solid var(--primary); /* 左側藍色指示條 */
+            color: var(--primary) !important;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            font-weight: bold;
         }
         
-        .day-item-active .day-item-text-title {
-            color: var(--primary);
-            font-weight: 800;
-        }
-        
-        .day-item-active .day-item-text-date {
-             color: var(--text-sub);
-        }
+        .day-item-active .day-item-text-title { color: var(--primary); }
+        .day-item-active .day-item-text-date { color: var(--text-sub); }
 
-        .day-item-text-title { font-weight: 600; font-size: 1.05rem; display: flex; justify-content: space-between; }
-        .day-item-text-date { font-size: 0.85rem; color: var(--text-sub); margin-top: 4px; opacity: 0.9; }
+        .day-item-text-title { font-weight: 600; font-size: 1rem; }
+        .day-item-text-date { font-size: 0.85rem; margin-top: 4px; opacity: 0.8; }
 
-        /* --- 右側內容區 (Content Area) --- */
+        /* --- 右側內容區 --- */
         .content-area { flex: 1; }
         
-        /* 每日標題 Header */
         .day-header { 
             margin-bottom: 24px; 
-            padding: 20px 24px; 
+            padding: 24px; 
             background: var(--bg-content-header); 
-            backdrop-filter: var(--glass-blur); 
             border-radius: var(--border-radius-lg); 
             border: 1px solid var(--border-light);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-sm);
         }
         
-        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 1.8rem; color: var(--text-main); font-weight: 800; letter-spacing: -0.5px; }
+        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 2rem; color: var(--text-main); font-weight: 800; letter-spacing: -0.5px; }
         
-        /* 標題輸入框優化 */
         .day-title-input { 
-            font-size: 1.2rem; 
-            padding: 8px 12px; 
+            font-size: 1.25rem; 
+            padding: 10px 16px; 
             border-radius: 8px; 
             flex: 1; 
             min-width: 0; 
-            border: 1px solid rgba(0,0,0,0.1); 
-            background: rgba(255,255,255,0.5);
+            border: 2px solid var(--border-light); 
+            background: #FAFAFA;
             color: var(--text-main);
-            transition: all 0.2s;
+            transition: border-color 0.2s;
         }
-        .day-title-input:focus {
-            outline: none;
-            background: #fff;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
-        }
+        .day-title-input:focus { outline: none; border-color: var(--primary); background: #ffffff; }
 
-        /* 卡片通用樣式優化 */
+        /* 🔥 卡片通用樣式：純白底，深色字，確保任何螢幕都清楚 */
         .card {
-            background: var(--bg-card);
+            background-color: var(--bg-card) !important; 
+            color: var(--text-main) !important;
             border-radius: var(--border-radius-md);
-            box-shadow: var(--shadow-card);
+            box-shadow: var(--shadow-sm);
             margin-bottom: 16px;
             overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid rgba(255,255,255,0.5);
-            list-style: none; /* remove li dots */
+            border: 1px solid var(--border-light);
+            list-style: none;
         }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.08);
-        }
+        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #d1d5db; }
 
-        /* Transport Card specific */
-        .card-header { padding: 10px 15px; font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; color: white; }
-        .header-blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .header-green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #1f5f45; }
-        .header-orange { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #5d4037; }
+        /* Transport Card */
+        .card-header { padding: 12px 20px; font-size: 0.95rem; font-weight: bold; display: flex; justify-content: space-between; color: white; }
+        .header-blue { background: #3B82F6; } /* 純藍 */
+        .header-green { background: #10B981; } /* 純綠 */
+        .header-orange { background: #F59E0B; } /* 純橘 */
         
-        .card-body { padding: 15px; }
-        
-        /* Transport Layout */
+        .card-body { padding: 20px; }
         .transport-body { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .time-col { flex: 1; min-width: 80px; text-align: center; }
         .duration-col { flex: 1.5; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .time-text { font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
+        .place-text { font-size: 0.95rem; color: var(--text-sub); margin-top: 4px; font-weight: 600; }
+        .terminal-text { font-size: 0.8rem; color: var(--text-muted); background: #F3F4F6; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 6px; }
         
-        .time-text { font-size: 1.2rem; font-weight: bold; color: var(--text-main); position: relative; }
-        .offset-text { font-size: 0.7rem; color: #e74c3c; font-weight: bold; position: absolute; top: -5px; right: -10px; }
-        .place-text { font-size: 0.9rem; color: var(--text-sub); margin-top: 4px; font-weight: 500; }
-        .terminal-text { font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
-        
-        .arrow-graphic { color: #ccc; font-size: 0.8rem; margin: 2px 0; letter-spacing: -1px; }
-        .duration-text { font-weight: bold; font-size: 0.9rem; }
-        .text-blue { color: #007bff; }
-        .text-green { color: #28a745; }
-        .sub-info { font-size: 0.75rem; color: var(--text-muted); }
-        .text-red { color: #dc3545; }
-        .cost-text { margin-top: 5px; font-size: 0.85rem; font-weight: bold; color: #555; background: #eee; padding: 2px 8px; border-radius: 10px; }
+        .arrow-graphic { color: #D1D5DB; font-size: 0.8rem; margin: 4px 0; }
+        .duration-text { font-weight: bold; font-size: 0.9rem; color: var(--text-sub); }
+        .text-blue { color: #2563EB; }
+        .text-green { color: #059669; }
+        .cost-text { margin-top: 5px; font-size: 0.85rem; font-weight: bold; color: #4B5563; background: #F3F4F6; padding: 4px 10px; border-radius: 20px; }
 
-        /* Accommodation Layout */
-        .acc-info-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .acc-name { font-size: 1.1rem; font-weight: bold; color: var(--text-main); }
-        .acc-address { font-size: 0.85rem; color: var(--text-sub); margin-top: 3px; }
-        .acc-phone { font-size: 0.85rem; color: var(--text-muted); }
-        .acc-dates { background: rgba(255,255,255,0.5); padding: 8px; border-radius: 6px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 4px; border: 1px dashed #ddd; }
-        .label-orange { color: #e67e22; font-weight: bold; }
-        .acc-cost-col { text-align: right; }
-        .tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; margin-left: 5px; }
-        .tag-green { background: #28a745; }
-        .tag-red { background: #dc3545; }
-        
         /* General Layout */
-        .general-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; }
-        .general-left { display: flex; align-items: flex-start; gap: 12px; }
-        .category-icon { font-size: 1.5rem; background: #f0f2f5; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-        .general-name { font-weight: bold; font-size: 1rem; color: var(--text-main); }
-        .general-sub { font-size: 0.85rem; color: var(--text-sub); margin-top: 2px; }
-        .opening-hours-tag { font-size: 0.75rem; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+        .general-card { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+        .general-left { display: flex; align-items: flex-start; gap: 16px; flex: 1; }
+        .category-icon { font-size: 1.8rem; background: #F3F4F6; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; color: #4B5563; }
+        .general-content { display: flex; flex-direction: column; gap: 4px; }
+        .general-name { font-weight: 700; font-size: 1.1rem; color: var(--text-main); line-height: 1.4; }
+        .general-sub { font-size: 0.9rem; color: var(--text-sub); display: flex; align-items: center; gap: 5px; }
+        .opening-hours-tag { font-size: 0.8rem; background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; align-self: flex-start; }
         
-        .general-right { text-align: right; min-width: 80px; }
-        .time-display { font-weight: bold; color: var(--text-main); font-size: 0.95rem; }
-        .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 2px 0; }
-        .duration-tag { font-size: 0.7rem; background: #e2e6ea; padding: 1px 5px; border-radius: 4px; color: #555; }
-        .arrow-small { font-size: 0.7rem; color: #ccc; }
-
-        /* Note Layout */
-        .note-card { padding: 15px; border-left: 4px solid #ffc107; }
-        .note-title { font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
-        .note-content { font-size: 0.9rem; color: var(--text-sub); white-space: pre-wrap; }
-        .note-attachment { margin-top: 8px; }
-        .attachment-link { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ddd; padding: 6px 10px; border-radius: 20px; text-decoration: none; color: #555; font-size: 0.85rem; transition: background 0.2s; }
-        .attachment-link:hover { background: #f8f9fa; border-color: #ccc; }
-        .attach-arrow { font-size: 0.7rem; color: #999; }
+        .general-right { text-align: right; min-width: 90px; padding-left: 10px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+        .time-display { font-weight: 800; color: var(--text-main); font-size: 1rem; }
+        .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 4px 0; }
+        .duration-tag { font-size: 0.75rem; background: #F3F4F6; padding: 2px 8px; border-radius: 4px; color: #6B7280; }
+        .arrow-small { font-size: 0.7rem; color: #D1D5DB; }
 
         /* Simple Card */
-        .simple-card { cursor: pointer; padding: 12px 15px; background: rgba(255,255,255,0.7); }
-        .simple-card-content { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-sub); }
-        .separator { color: #ccc; }
-        .icon-text { display: flex; align-items: center; gap: 5px; font-weight: 500; }
-        .location-flow { display: flex; align-items: center; gap: 5px; }
-        .arrow { color: #999; font-size: 0.8rem; }
+        .simple-card { cursor: pointer; padding: 14px 20px; background: #ffffff; }
+        .simple-card-content { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--text-sub); }
+        .icon-text { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-main); }
+        
+        /* Note Layout */
+        .note-card { padding: 20px; border-left: 4px solid #F59E0B; background: #FFFBEB !important; }
+        
+        /* Header Buttons */
+        .header-btn {
+            padding: 8px 16px;
+            background: #ffffff;
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            cursor: pointer;
+            color: var(--text-main);
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s;
+        }
+        .header-btn:hover { background: #F9FAFB; border-color: #D1D5DB; }
+        .header-btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .header-btn-primary:hover { background: #1D4ED8; }
 
-        /* RWD: Mobile (Max 768px) */
+        /* RWD: Mobile */
         @media (max-width: 768px) {
-          .layout-container { flex-direction: column; gap: 10px; }
-          
-          /* Mobile Sidebar: Horizontal Scroll */
+          .trip-details-page { padding: 10px; }
+          .layout-container { flex-direction: column; gap: 16px; }
           .sidebar { 
             width: 100%; 
             border-right: none; 
             border-bottom: 1px solid var(--border-light); 
-            padding: 10px;
+            padding: 12px;
             display: flex; 
             overflow-x: auto; 
             white-space: nowrap;
-            position: relative;
-            top: 0;
-            background: var(--bg-sidebar);
-            box-shadow: none;
-            -webkit-overflow-scrolling: touch; /* smooth scroll ios */
+            background: #ffffff;
           }
-          
-          .day-item { 
-            flex: 0 0 auto;
-            width: auto; 
-            min-width: 80px; 
-            text-align: center;
-            margin-bottom: 0;
-            margin-right: 8px; 
-            padding: 8px 12px;
-            display: block; /* reset flex */
-          }
-          
-          .day-item-active {
-              border-left: none;
-              border-bottom: 3px solid var(--primary);
-              transform: scale(1.02);
-          }
-          
-          .day-item-text-title { font-size: 0.9rem; display: block; text-align: center; }
-          .day-item-text-date { font-size: 0.75rem; margin-top: 2px; text-align: center; }
-
-          .content-area { padding: 0 5px; }
-          .day-header { padding: 15px; margin-bottom: 15px; }
-          .day-header-h2 { font-size: 1.4rem; }
-          .day-title-input { font-size: 1rem; padding: 6px; }
-          
-          /* Card adjustments for mobile */
-          .transport-body { flex-direction: column; align-items: stretch; gap: 15px; }
-          .duration-col { flex-direction: row; justify-content: center; gap: 10px; padding: 5px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; }
-          .arrow-graphic { display: none; }
-          .time-col { display: flex; justify-content: space-between; align-items: center; text-align: left; }
-          .place-text { margin-top: 0; }
+          .day-item { min-width: 80px; text-align: center; margin-right: 8px; margin-bottom: 0; padding: 8px 12px; }
+          .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
+          .content-area { padding: 0; }
+          .general-card { padding: 16px; }
+          .general-name { font-size: 1rem; }
         }
       `}</style>
 
@@ -604,7 +547,6 @@ export default function TripDetails() {
         />
       )}
 
-      {/* ✨ 3. 加入 ShareModal (當 showShareModal 為 true 時顯示) */}
       {showShareModal && (
         <ShareModal 
             trip={trip} 
@@ -615,28 +557,24 @@ export default function TripDetails() {
 
       {/* Header Info */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding: '0 5px'}}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#fff', display:'inline-flex', alignItems: 'center', marginBottom:'15px', fontWeight: 'bold', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>← 返回列表</Link>
+        <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', display:'inline-flex', alignItems: 'center', marginBottom:'15px', fontWeight: 'bold' }}>← 返回列表</Link>
         <div style={{display:'flex', gap:'10px'}}>
-            {/* ✨ 4. 新增分享按鈕 */}
             <button 
                 onClick={() => setShowShareModal(true)} 
-                style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius:'20px', cursor:'pointer', color: '#fff', backdropFilter: 'var(--glass-blur)', fontWeight: '500', transition: 'background 0.2s' }}
-                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-                onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+                className="header-btn"
             >
                 🔗 分享
             </button>
-            <button onClick={() => setShowSettings(true)} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius:'20px', cursor:'pointer', color: '#fff', backdropFilter: 'var(--glass-blur)', fontWeight: '500' }}>⚙️ 設定</button>
+            <button onClick={() => setShowSettings(true)} className="header-btn">⚙️ 設定</button>
         </div>
       </div>
       
-      {/* 標題區域，增加文字陰影以適應深色背景 */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.3)', paddingBottom: '15px', marginBottom: '20px', paddingLeft: '5px' }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>{trip.title}</h1>
-        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', display:'flex', flexWrap: 'wrap', gap: '20px', fontWeight: '500' }}>
-          <span style={{display:'flex', alignItems:'center', gap:'5px'}}>📅 {trip.start_date} ~ {trip.end_date}</span>
-          <span style={{display:'flex', alignItems:'center', gap:'5px'}}>💰 預算: ${trip.budget_goal}</span>
-          <span style={{ display: 'inline-flex', alignItems:'center', gap:'5px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '20px', marginBottom: '24px', paddingLeft: '5px' }}>
+        <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'var(--text-main)', fontWeight: '800' }}>{trip.title}</h1>
+        <div style={{ color: 'var(--text-sub)', fontSize: '15px', display:'flex', flexWrap: 'wrap', gap: '24px', fontWeight: '500' }}>
+          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>📅 {trip.start_date} ~ {trip.end_date}</span>
+          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>💰 預算: ${trip.budget_goal}</span>
+          <span style={{ display: 'inline-flex', alignItems:'center', gap:'6px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             👫 {trip.trip_members?.length} 人
           </span>
         </div>
@@ -661,10 +599,9 @@ export default function TripDetails() {
         <div className="content-area">
           {selectedDay && (
             <>
-              {/* 每日重點 Header */}
               <div className="day-header">
                 <div className="day-header-date">{selectedDay.day_date} <span style={{color: 'var(--primary)'}}>({getWeekday(selectedDay.day_date)})</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <h2 className="day-header-h2">Day {selectedDay.day_number}</h2>
                   <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="輸入當日重點 (例: 移動日)" />
                 </div>
@@ -687,7 +624,7 @@ export default function TripDetails() {
                 </SortableContext>
               </DndContext>
                
-              <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(0,123,255,0.3)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
+              <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
                 <span>➕</span> 新增行程
               </button>
             </>
