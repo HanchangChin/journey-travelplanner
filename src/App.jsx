@@ -73,6 +73,9 @@ function Home({ session }) {
       const { data, error } = await supabase
         .from('trips')
         .select('*, trip_days(*), trip_destinations(*)')
+        // ✨ 修正重點：這裡加入過濾條件，只撈取「擁有者」是自己的行程
+        // 這樣別人的分享行程就不會出現在您的首頁列表了
+        .eq('user_id', session?.user?.id) 
         .order('start_date', { ascending: false })
       if (error) throw error
       return data

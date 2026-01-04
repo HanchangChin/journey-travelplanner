@@ -17,11 +17,9 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
     opening_hours: '',
     attachment_url: '', 
     attachment_type: '',
-    // --- Food 預約欄位 ---
     is_reserved: false,
     reservation_agent: '',
     reservation_advance_time: '',
-    // --- ✨ 新增: 幣別欄位 ---
     currency: 'TWD'
   })
 
@@ -33,7 +31,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
     checkin_date: '', checkout_date: '', agent: '', phone: '', currency: 'TWD', is_paid: false
   })
 
-  // --- 初始化 Effect ---
   useEffect(() => {
     if (itemToEdit) {
       let formattedHours = ''
@@ -52,7 +49,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         is_reserved: itemToEdit.is_reserved || false,
         reservation_agent: itemToEdit.reservation_agent || '',
         reservation_advance_time: itemToEdit.reservation_advance_time || '',
-        // ✨ 載入幣別 (若舊資料無幣別則預設 TWD)
         currency: itemToEdit.currency || 'TWD'
       })
       const savedDetails = itemToEdit.category === 'transport' ? itemToEdit.transport_details : itemToEdit.accommodation_details
@@ -64,7 +60,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         rating: '', cost: '', notes: '', opening_hours: '',
         attachment_url: '', attachment_type: '',
         is_reserved: false, reservation_agent: '', reservation_advance_time: '',
-        // ✨ 初始化幣別
         currency: 'TWD'
       })
       setDetails({
@@ -79,7 +74,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
     }
   }, [itemToEdit, tripMembers, dayId, days])
 
-  // --- 自動計算 (交通) ---
   useEffect(() => { 
     if (formData.category !== 'transport') return
     if (details.sub_type === 'flight_train') calculateDurationFlight() 
@@ -218,7 +212,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             start_time: formData.end_time || null, end_time: formData.end_time || null, 
             transport_details: { ...details, is_arrival_card: true, original_start_time: formData.start_time, arrival_day_offset: 0 },
             sort_order: 0,
-            currency: formData.currency // ✨ 同步幣別
+            currency: formData.currency
         }
         const { error } = await supabase.from('itinerary_items').insert([arrivalPayload])
         if (error) alert('❌ 建立失敗'); else { alert(`🎉 已在 Day ${targetDay.day_number} 複製抵達行程！`); onSave() }
@@ -242,7 +236,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
               location_name: formData.location_name, address: formData.address,
               sort_order: 9000, 
               accommodation_details: { ...details, is_generated_stay: true },
-              currency: formData.currency // ✨ 同步幣別
+              currency: formData.currency
           }
           await supabase.from('itinerary_items').insert([stayPayload])
       }
@@ -316,7 +310,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         is_reserved: formData.is_reserved,
         reservation_agent: formData.reservation_agent,
         reservation_advance_time: formData.reservation_advance_time,
-        // ✨ 儲存幣別
         currency: formData.currency,
         sort_order: newSortOrder
       }
@@ -344,12 +337,14 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
   return (
     <div className="modal-overlay">
       <style>{`
+        /* ✨ 關鍵修正：確保深色模式下的輸入框樣式正確 ✨ */
         :root {
-            --modal-bg: var(--bg-card, #ffffff);
-            --text-color: var(--text-main, #333333);
-            --text-sub: var(--text-sub, #666666);
-            --input-bg: var(--bg-input, #ffffff);
-            --input-border: var(--border-color, #cccccc);
+            /* 預設 (淺色模式) */
+            --modal-bg: #ffffff;
+            --text-color: #333333;
+            --text-sub: #666666;
+            --input-bg: #ffffff;
+            --input-border: #cccccc;
             --btn-gray: #f0f0f0;
             
             --bg-transport: #f8f9fa;
@@ -370,17 +365,26 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
 
         @media (prefers-color-scheme: dark) {
             :root {
+                /* 深色模式：強制輸入框為深色，文字為淺色 */
+                --modal-bg: #1e1e1e;
+                --text-color: #e0e0e0;
+                --text-sub: #aaaaaa;
+                --input-bg: #2d2d2d; /* 深色背景 */
+                --input-border: #444444;
                 --btn-gray: #333333;
+                
                 --bg-transport: #252526;
                 --border-transport: #333333;
                 --bg-transport-sub: #4d442b;
                 --border-transport-sub: #665d3e;
                 --text-transport-sub: #ffd700;
                 --bg-transport-time: #1a3b5c;
+                
                 --bg-acc: #3d241c;
                 --border-acc: #5e3a2e;
                 --bg-acc-sub: #1e1e1e;
                 --text-acc-label: #ffab91;
+                
                 --bg-note: #424228;
                 --border-note: #666640;
             }
@@ -405,7 +409,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
             width: 560px; maxWidth: 100%; max-height: 100%;
             display: flex; flex-direction: column;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-transport); /* 微調邊框顏色 */
             overflow: hidden;
             backdrop-filter: blur(10px);
         }
@@ -434,8 +438,8 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         input, select, textarea {
             width: 100%; padding: 10px; font-size: 16px; 
             border: 1px solid var(--input-border); 
-            background-color: var(--input-bg);
-            color: var(--text-color);
+            background-color: var(--input-bg) !important; /* 強制背景色 */
+            color: var(--text-color) !important; /* 強制文字顏色 */
             border-radius: 8px;
             box-sizing: border-box;
             transition: border-color 0.2s;
@@ -598,8 +602,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     </div>
                 </div>
 
-                {/* ✨ 新增: 交通費用的總計輸入欄位 (包含幣別) ✨ */}
-                <div style={{marginTop:'10px', background:'rgba(255,255,255,0.5)', padding:'10px', borderRadius:'8px', border:'1px dashed var(--border-transport-sub)'}}>
+                <div style={{marginTop:'10px', background:'rgba(255,255,255,0.1)', padding:'10px', borderRadius:'8px', border:'1px dashed var(--border-transport-sub)'}}>
                     <label>💰 交通總費用</label>
                     <div style={{display:'flex', gap:'5px'}}>
                         <input type="number" placeholder="總費用" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} style={{flex:2}} />
@@ -730,7 +733,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     <div className="form-col"><label>結束</label><input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} /></div>
                 </div>
                 
-                {/* ✨ 修改: 費用欄位新增幣別輸入 ✨ */}
                 <div style={{marginTop:'10px'}}>
                     <label>費用</label>
                     <div style={{display:'flex', gap:'5px'}}>
