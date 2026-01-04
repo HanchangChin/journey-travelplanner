@@ -112,7 +112,7 @@ export default function TripDetails() {
       setTrip(cachedData.trip)
       setDays(cachedData.days)
       setItems(cachedData.items)
-       
+        
       if (!selectedDay && cachedData.days?.length > 0) {
         setSelectedDay(cachedData.days[0])
       } else if (selectedDay) {
@@ -147,7 +147,7 @@ export default function TripDetails() {
     const oldIndex = currentDayItems.findIndex((item) => item.id === active.id);
     const newIndex = currentDayItems.findIndex((item) => item.id === over.id);
     const newOrder = arrayMove(currentDayItems, oldIndex, newIndex);
-     
+      
     const otherItems = items.filter(i => i.trip_day_id !== selectedDay.id);
     setItems([...otherItems, ...newOrder]);
 
@@ -210,7 +210,7 @@ export default function TripDetails() {
 
   // --- Card Components ---
 
-  // 🔥 1. TransportCard
+  // 🔥 1. TransportCard (修改版: 地點與標籤同一行，高度簡潔)
   const TransportCard = ({ item }) => {
     const t = item.transport_details || {};
     const travelers = t.travelers || [];
@@ -219,7 +219,6 @@ export default function TripDetails() {
     const isPublic = t.sub_type === 'public'; 
     const isSimpleView = isPublic && (!item.start_time || !item.end_time);
 
-    // 格式化地點顯示
     const formatLocation = (locName, terminal) => {
         if (!locName) return '未設定地點';
         return terminal ? `${locName} (${terminal})` : locName;
@@ -239,26 +238,21 @@ export default function TripDetails() {
 
     return (
       <div onClick={() => openEditItemModal(item)} className="card transport-card">
-        {/* Header */}
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
           <span>{isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}</span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
         </div>
 
         <div className="card-body transport-body-new">
-          {/* 上層：時間與耗時資訊 */}
           <div className="transport-time-row">
              <div className="time-big">{formatDisplayTime(isArrivalCard ? t.original_start_time : item.start_time)}{isArrivalCard && <sup className="offset-text">-1</sup>}</div>
-             
              <div className="duration-badge">
                 <span className="duration-icon">{isCarMode ? '🚗' : (isPublic ? '🚌' : '✈️')}</span>
                 <span className="duration-val">{t.duration_text || '--'}</span>
              </div>
-             
              <div className="time-big">{formatDisplayTime(isArrivalCard ? item.start_time : item.end_time)}{!isArrivalCard && t.arrival_day_offset > 0 && <sup className="offset-text">+{t.arrival_day_offset}</sup>}</div>
           </div>
 
-          {/* 輔助資訊：距離與 Buffer */}
           {(t.distance_text || t.buffer_time > 0) && (
               <div className="transport-meta-row">
                  {t.distance_text && <span>📏 {t.distance_text}</span>}
@@ -266,9 +260,7 @@ export default function TripDetails() {
               </div>
           )}
 
-          {/* 下層：起迄點列表 (Timeline Style) */}
           <div className="transport-loc-list">
-              {/* 起點 */}
               <div className="loc-item">
                   <div className="timeline-col">
                       <div className="dot dot-start"></div>
@@ -279,8 +271,6 @@ export default function TripDetails() {
                       <div className="loc-name">{formatLocation(item.location_name, t.departure_terminal)}</div>
                   </div>
               </div>
-              
-              {/* 終點 */}
               <div className="loc-item">
                   <div className="timeline-col">
                       <div className="line-top"></div>
@@ -293,7 +283,6 @@ export default function TripDetails() {
               </div>
           </div>
 
-          {/* 顯示備註 */}
           {item.notes && (
             <div className="transport-notes">
                <span className="note-icon">📝</span>
@@ -301,7 +290,6 @@ export default function TripDetails() {
             </div>
           )}
 
-          {/* 價格顯示在右下角 */}
           {item.cost > 0 && <div className="transport-cost-tag">${item.cost}</div>}
         </div>
       </div>
@@ -320,22 +308,44 @@ export default function TripDetails() {
         </div>
         <div className="card-body">
             <div className="acc-info-row">
-                <div>
-                    <div className="acc-name">{item.location_name}</div>
-                    <div className="acc-address">📍 {item.address}</div>
-                    {/* ✨ 已移除電話顯示 */}
+                <div style={{flex: 1}}>
+                    <div 
+                        className="acc-address map-pin-container"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setMapSelectorAddress(item.address);
+                        }}
+                    >
+                        <span className="map-pin-icon">📍</span>
+                        <span style={{textDecoration:'underline'}}>{item.address}</span>
+                    </div>
                 </div>
-                <div className="acc-cost-col">
+                
+                <div className="acc-cost-status-row">
                     {item.cost > 0 && <div className="acc-cost">{acc.currency} ${item.cost}</div>}
-                    <div className="acc-status">{acc.is_paid ? <span className="tag tag-green">已付款</span> : <span className="tag tag-red">尚未付款</span>}</div>
+                    <div className="acc-status">
+                        {acc.is_paid ? 
+                            <span className="tag tag-green">已付款</span> : 
+                            <span className="tag tag-red">尚未付款</span>
+                        }
+                    </div>
                 </div>
             </div>
+
             {!isStay && (
-                <div className="acc-dates">
-                    <div><span className="label-orange">📥 Check-in:</span> {acc.checkin_date} {formatDisplayTime(item.start_time)}</div>
-                    <div><span className="label-orange">📤 Check-out:</span> {acc.checkout_date} {formatDisplayTime(item.end_time)}</div>
+                <div className="acc-dates-inline">
+                    <div>
+                        <span className="label-orange">📥 Check-in:</span> 
+                        <span className="date-val">{acc.checkin_date} {formatDisplayTime(item.start_time)}</span>
+                    </div>
+                    <div className="date-separator">|</div>
+                    <div>
+                        <span className="label-orange">📤 Check-out:</span> 
+                        <span className="date-val">{acc.checkout_date} {formatDisplayTime(item.end_time)}</span>
+                    </div>
                 </div>
             )}
+            
             {item.notes && <div className="card-notes">📝 {item.notes}</div>}
         </div>
       </div>
@@ -351,6 +361,8 @@ export default function TripDetails() {
     const displayStart = item.start_time ? formatDisplayTime(item.start_time) : '';
     const displayEnd = item.end_time ? formatDisplayTime(item.end_time) : '';
 
+    const showReservation = item.category === 'food' && (item.is_reserved || item.reservation_agent || item.reservation_advance_time);
+
     return (
       <li onClick={() => openEditItemModal(item)} className="card general-card">
         <div className="general-left">
@@ -358,22 +370,38 @@ export default function TripDetails() {
           <div className="general-content">
             <div className="general-name">{item.name}</div>
             
-            {item.address && (
-                <div 
-                    className="general-sub map-pin-container" 
-                    onClick={(e) => {
-                        e.stopPropagation(); 
-                        setMapSelectorAddress(item.address);
-                    }}
-                >
-                    <span className="map-pin-icon">📍</span> 
-                    <span className="map-pin-hint">開啟地圖</span>
+            {/* 預約資訊 */}
+            {showReservation && (
+                <div className="general-sub reservation-row">
+                    {item.is_reserved ? 
+                        <span className="res-tag res-tag-success">✅ 已預約</span> : 
+                        <span className="res-tag res-tag-gray">❌ 未預約</span>
+                    }
+                    {item.reservation_agent && <span>🎫 {item.reservation_agent}</span>}
+                    {item.reservation_advance_time && <span>⏰ {item.reservation_advance_time}</span>}
                 </div>
             )}
+
+            {/* 地點與營業時間 */}
+            {(item.address || todayHours) && (
+              <div className="general-sub" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                {item.address && (
+                  <div 
+                      className="tag-base tag-map"
+                      onClick={(e) => {
+                          e.stopPropagation(); 
+                          setMapSelectorAddress(item.address);
+                      }}
+                  >
+                      <span className="map-pin-icon" style={{fontSize:'1rem'}}>📍</span> 
+                      <span>開啟地圖</span>
+                  </div>
+                )}
+                
+                {todayHours && <div className="tag-base tag-hours">🕒 {todayHours}</div>}
+              </div>
+            )}
             
-            {/* ✨ 已移除電話顯示 */}
-            
-            {todayHours && <div className="opening-hours-tag">🕒 {todayHours}</div>}
             {item.notes && <div className="general-sub">📝 {item.notes}</div>}
           </div>
         </div>
@@ -384,24 +412,78 @@ export default function TripDetails() {
             {(displayStart || displayEnd) && <span className="arrow-small">──➝</span>}
           </div>
           <div className="time-display">{displayEnd}</div>
+          
+          {item.cost > 0 && (
+              <div className="general-cost">
+                  {item.currency || 'TWD'} <span style={{fontWeight:'bold'}}>${item.cost}</span>
+              </div>
+          )}
         </div>
       </li>
     )
   }
 
-  // 🔥 4. NoteCard
+  // 🔥 4. NoteCard (維持收合功能與 SVG Icon)
   const NoteCard = ({ item }) => {
+      const [isExpanded, setIsExpanded] = useState(false);
+
       return (
-          <div onClick={() => openEditItemModal(item)} className="card note-card">
-              <div className="note-title">📝 {item.name}</div>
-              {item.notes && <div className="note-content">{item.notes}</div>}
-              {item.attachment_url && (
-                  <div className="note-attachment">
-                      <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="attachment-link">
-                          <span className="attach-icon">{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
-                          <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
-                          <span className="attach-arrow">↗</span>
-                      </a>
+          <div onClick={() => openEditItemModal(item)} className="card note-card" style={{ cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div className="note-title" style={{ margin: 0, flex: 1 }}>
+                      📝 {item.name}
+                  </div>
+                  
+                  <button 
+                      type="button"
+                      onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setIsExpanded(!isExpanded); 
+                      }}
+                      style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--text-sub)',
+                          transition: 'transform 0.3s ease',
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}
+                  >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7 10L12 15L17 10H7Z" />
+                      </svg>
+                  </button>
+              </div>
+
+              {isExpanded && (
+                  <div style={{ marginTop: '12px', borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: '12px', animation: 'fadeIn 0.2s' }}>
+                      {item.notes && (
+                          <div 
+                              className="note-content" 
+                              style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  lineHeight: '1.6',
+                                  color: 'var(--text-main)',
+                                  fontSize: '0.95rem'
+                              }}
+                          >
+                              {item.notes}
+                          </div>
+                      )}
+                      
+                      {item.attachment_url && (
+                          <div className="note-attachment" style={{ marginTop: '12px' }}>
+                              <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="attachment-link">
+                                  <span className="attach-icon">{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
+                                  <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
+                                  <span className="attach-arrow">↗</span>
+                              </a>
+                          </div>
+                      )}
                   </div>
               )}
           </div>
@@ -467,11 +549,45 @@ export default function TripDetails() {
             min-height: 100vh;
             padding: 20px;
             box-sizing: border-box;
-            
             max-width: 1280px; 
             margin: 0 auto;
             width: 100%;
         }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100; 
+            background: var(--bg-body);
+            backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            margin: 0 -20px 20px -20px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header-title-group { display: flex; flex-direction: column; }
+        .header-title { margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--text-main); line-height: 1.2; }
+        .header-meta { font-size: 0.8rem; color: var(--text-sub); display: flex; gap: 10px; margin-top: 2px; }
+        .header-right { display: flex; gap: 8px; }
+
+        .header-btn {
+            padding: 6px 14px;
+            font-size: 0.9rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            cursor: pointer;
+            color: var(--text-main);
+            font-weight: 600;
+            box-shadow: var(--shadow-card);
+            transition: all 0.2s;
+        }
+        .header-btn:hover { background: var(--day-item-hover); border-color: var(--primary); }
 
         .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; z-index: 1; }
 
@@ -486,7 +602,7 @@ export default function TripDetails() {
             overflow-y: auto; 
             max-height: 80vh; 
             position: sticky; 
-            top: 20px; 
+            top: 100px; 
         }
 
         .day-item { 
@@ -498,27 +614,14 @@ export default function TripDetails() {
             color: var(--text-sub);
             border: 1px solid transparent;
         }
-        
         .day-item:hover { background: var(--day-item-hover); color: var(--text-main); }
-
-        .day-item-active {
-            background-color: var(--day-item-active-bg) !important;
-            color: var(--day-item-active-text) !important;
-            box-shadow: var(--shadow-card);
-            border: 1px solid var(--border-card);
-            font-weight: 600;
-        }
-        
+        .day-item-active { background-color: var(--day-item-active-bg) !important; color: var(--day-item-active-text) !important; box-shadow: var(--shadow-card); border: 1px solid var(--border-card); font-weight: 600; }
         .day-item-active .day-item-text-title { color: var(--day-item-active-text); }
         .day-item-active .day-item-text-date { color: var(--text-sub); }
-
         .day-item-text-title { font-weight: 600; font-size: 1rem; }
         .day-item-text-date { font-size: 0.85rem; margin-top: 4px; opacity: 0.8; }
 
-        .content-area { 
-            flex: 1; 
-            min-width: 0; 
-        }
+        .content-area { flex: 1; min-width: 0; }
         
         .card {
             background-color: var(--bg-card) !important; 
@@ -530,142 +633,39 @@ export default function TripDetails() {
             transition: transform 0.2s, box-shadow 0.2s;
             border: 1px solid var(--border-card);
             list-style: none;
-            
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
         }
         .card:hover { transform: translateY(-2px); border-color: var(--primary); }
 
-        .transport-card { 
-            position: relative; 
-        }
-        
-        .transport-body-new {
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .transport-time-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed var(--border-card);
-        }
-        .time-big {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--text-main);
-            letter-spacing: -0.5px;
-        }
-        .duration-badge {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--primary);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .transport-meta-row {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: -5px;
-        }
+        .transport-card { position: relative; }
+        .transport-body-new { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .transport-time-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px dashed var(--border-card); }
+        .time-big { font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; }
+        .duration-badge { background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .transport-meta-row { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: -5px; }
         .text-red { color: #ef4444; }
-
-        .transport-loc-list {
-            display: flex;
-            flex-direction: column;
-        }
-        .loc-item {
-            display: flex;
-            gap: 12px;
-            position: relative;
-            min-height: 40px; 
-        }
         
-        .timeline-col {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 16px;
-            padding-top: 6px;
-        }
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 2px solid #fff;
-            box-shadow: 0 0 0 1px #cbd5e1;
-            z-index: 1;
-        }
+        /* ✨ Transport 調整: 高度縮減與單行排列 */
+        .transport-loc-list { display: flex; flex-direction: column; }
+        .loc-item { display: flex; gap: 12px; position: relative; min-height: 28px; margin-bottom: 6px; } 
+        .timeline-col { width: 16px; display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #cbd5e1; z-index: 1; }
         .dot-start { background: var(--primary); }
         .dot-end { background: #ef4444; } 
+        .line { flex: 1; width: 2px; background: #e2e8f0; margin-top: -2px; margin-bottom: -4px; min-height: 15px; }
+        .line-top { width: 2px; background: #e2e8f0; height: 10px; margin-bottom: -2px; }
         
-        .line {
-            flex: 1;
-            width: 2px;
-            background: #e2e8f0;
-            margin-top: -2px;
-            margin-bottom: -4px;
-            min-height: 20px;
-        }
-        .line-top {
-            width: 2px;
-            background: #e2e8f0;
-            height: 10px;
-            margin-bottom: -2px;
-        }
+        /* ✨ 新的 Inline 排版樣式 */
+        .loc-content { flex: 1; display: flex; align-items: center; gap: 10px; padding-bottom: 0; }
+        .loc-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; min-width: 60px; margin-bottom: 0; }
+        .loc-name { font-size: 1rem; color: var(--text-main); font-weight: 500; line-height: 1.2; }
 
-        .loc-content { flex: 1; padding-bottom: 12px; }
-        .loc-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
-        }
-        .loc-name {
-            font-size: 1rem;
-            color: var(--text-main);
-            font-weight: 500;
-            line-height: 1.3;
-        }
-
-        .transport-notes {
-            margin-top: 5px;
-            padding: 10px;
-            background: rgba(128,128,128,0.05);
-            border-radius: 8px;
-            font-size: 0.9rem;
-            color: var(--text-sub);
-            display: flex;
-            gap: 8px;
-            align-items: flex-start;
-        }
+        .transport-notes { margin-top: 5px; padding: 10px; background: rgba(128,128,128,0.05); border-radius: 8px; font-size: 0.9rem; color: var(--text-sub); display: flex; gap: 8px; align-items: flex-start; }
         .note-icon { font-size: 1rem; }
         .note-text { line-height: 1.4; white-space: pre-wrap; }
-
-        .transport-cost-tag {
-            position: absolute;
-            bottom: 15px;
-            right: 15px;
-            background: #f1f5f9;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: var(--text-sub);
-        }
+        .transport-cost-tag { position: absolute; bottom: 15px; right: 15px; background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; color: var(--text-sub); }
 
         .card-header { padding: 12px 20px; font-size: 0.95rem; font-weight: bold; display: flex; justify-content: space-between; color: white; }
         .header-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); } 
@@ -677,15 +677,20 @@ export default function TripDetails() {
         .category-icon { font-size: 1.8rem; background: rgba(128,128,128,0.1); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; color: var(--text-sub); }
         .general-content { display: flex; flex-direction: column; gap: 4px; }
         .general-name { font-weight: 700; font-size: 1.1rem; color: var(--text-main); line-height: 1.4; }
-        
         .general-sub { font-size: 0.9rem; color: var(--text-sub); display: flex; align-items: center; gap: 5px; }
         .map-pin-container { cursor: pointer; display: inline-flex; align-items: center; transition: transform 0.1s; padding: 4px 0; }
         .map-pin-container:hover { transform: scale(1.05); }
         .map-pin-icon { font-size: 1.2rem; }
         .map-pin-hint { font-size: 0.8rem; color: var(--primary); text-decoration: underline; margin-left: 2px; }
-
         .opening-hours-tag { font-size: 0.8rem; background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; align-self: flex-start; }
         
+        .reservation-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; font-size: 0.85rem; }
+        .res-tag { padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        .res-tag-success { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .res-tag-gray { color: #64748b; background: rgba(100, 116, 139, 0.1); }
+        
+        .general-cost { font-size: 0.85rem; color: var(--text-sub); margin-top: 4px; font-weight: 500; }
+
         .general-right { text-align: right; min-width: 90px; padding-left: 10px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
         .time-display { font-weight: 800; color: var(--text-main); font-size: 1rem; min-height: 1rem; }
         .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 4px 0; min-height: 1rem; }
@@ -697,21 +702,26 @@ export default function TripDetails() {
         .icon-text { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-main); }
         .note-card { padding: 20px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.05) !important; }
         
-        .header-btn {
-            padding: 8px 16px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-card);
-            border-radius: 20px;
-            cursor: pointer;
-            color: var(--text-main);
-            font-weight: 600;
-            box-shadow: var(--shadow-card);
-            transition: all 0.2s;
-        }
-        .header-btn:hover { background: var(--day-item-hover); border-color: var(--primary); }
-        
         .attachment-link { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-body); border: 1px solid var(--border-card); padding: 6px 12px; border-radius: 20px; text-decoration: none; color: var(--text-sub); font-size: 0.85rem; transition: background 0.2s; }
         .attachment-link:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Accommodation specific */
+        .acc-info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .acc-address { font-size: 0.9rem; color: var(--text-sub); }
+        .acc-cost-status-row { display: flex; align-items: center; gap: 8px; }
+        .acc-cost { font-weight: bold; color: var(--text-main); font-size: 1rem; }
+        .acc-status .tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; }
+        .tag-green { background: #28a745; }
+        .tag-red { background: #dc3545; }
+        
+        .acc-dates-inline { 
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center; 
+            background: rgba(128,128,128,0.03); padding: 8px; border-radius: 8px; border: 1px dashed var(--border-card);
+            font-size: 0.85rem; color: var(--text-sub);
+        }
+        .date-separator { color: var(--text-muted); opacity: 0.5; }
+        .label-orange { color: #f59e0b; font-weight: bold; margin-right: 4px; }
+        .date-val { font-weight: 500; color: var(--text-main); }
 
         .map-modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -745,6 +755,11 @@ export default function TripDetails() {
             color: var(--text-sub); cursor: pointer;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .tag-base { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .tag-map { background: rgba(128, 128, 128, 0.1); color: var(--text-sub); cursor: pointer; transition: background 0.2s; }
+        .tag-map:hover { background: rgba(128, 128, 128, 0.2); }
+        .tag-hours { background: rgba(245, 158, 11, 0.15); color: #d97706; }
 
         @media (max-width: 768px) {
           .trip-details-page { padding: 10px; }
@@ -752,6 +767,7 @@ export default function TripDetails() {
           .sidebar { 
             width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
             padding: 12px; display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
+            top: 80px; 
           }
           .day-item { min-width: 80px; text-align: center; margin-right: 8px; margin-bottom: 0; padding: 8px 12px; }
           .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
@@ -793,25 +809,24 @@ export default function TripDetails() {
         />
       )}
 
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding: '0 5px', position: 'relative', zIndex: 2}}>
-        <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', display:'inline-flex', alignItems: 'center', marginBottom:'15px', fontWeight: 'bold' }}>← 返回列表</Link>
-        <div style={{display:'flex', gap:'10px'}}>
+      <div className="sticky-header">
+        <div className="header-left">
+            <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', fontSize: '1.1rem', marginRight: '5px' }}>←</Link>
+            <div className="header-title-group">
+                <h1 className="header-title">{trip.title}</h1>
+                <div className="header-meta">
+                    <span>{trip.start_date} ~ {trip.end_date}</span>
+                    <span>${trip.budget_goal}</span>
+                    <span>{(trip.trip_members?.length || 0) + 1} 人</span>
+                </div>
+            </div>
+        </div>
+        <div className="header-right">
             <button onClick={() => setShowShareModal(true)} className="header-btn">🔗 分享</button>
             <button onClick={() => setShowSettings(true)} className="header-btn">⚙️ 設定</button>
         </div>
       </div>
       
-      <div style={{ borderBottom: '1px solid var(--border-card)', paddingBottom: '20px', marginBottom: '24px', paddingLeft: '5px', position: 'relative', zIndex: 2 }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'var(--text-main)', fontWeight: '800' }}>{trip.title}</h1>
-        <div style={{ color: 'var(--text-sub)', fontSize: '15px', display:'flex', flexWrap: 'wrap', gap: '24px', fontWeight: '500' }}>
-          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>📅 {trip.start_date} ~ {trip.end_date}</span>
-          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>💰 預算: ${trip.budget_goal}</span>
-          <span style={{ display: 'inline-flex', alignItems:'center', gap:'6px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            👫 {trip.trip_members?.length} 人
-          </span>
-        </div>
-      </div>
-
       <div className="layout-container">
         <div className="sidebar">
           {days.map(day => (
