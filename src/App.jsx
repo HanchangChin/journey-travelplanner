@@ -13,7 +13,7 @@ import CreateTrip from './CreateTrip'
 import TripDetails from './TripDetails'
 
 // 引入新元件
-import ShareModal from './ShareModal'
+import ShareModal from './ShareModal.jsx'
 import PublicTripDetails from './PublicTripDetails'
 
 // 初始化 React Query 客戶端
