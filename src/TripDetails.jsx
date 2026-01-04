@@ -31,6 +31,9 @@ export default function TripDetails() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
 
+  // ✨ 控制地圖選擇視窗的狀態
+  const [mapSelectorAddress, setMapSelectorAddress] = useState(null)
+
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
   const sensors = useSensors(
@@ -169,6 +172,42 @@ export default function TripDetails() {
   if (isError) return <div className="error-state">載入失敗，請檢查網路連線。</div>
   if (!trip) return null
 
+  // --- Map Selector Modal Component ---
+  const MapSelectorModal = ({ address, onClose }) => {
+    if (!address) return null;
+    
+    const encodedAddress = encodeURIComponent(address);
+    const mapLinks = [
+        { name: 'Google Maps', url: `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, color: '#4285F4' },
+        { name: 'Apple Maps', url: `http://maps.apple.com/?q=${encodedAddress}`, color: '#000000' },
+        { name: 'Naver Map', url: `https://map.naver.com/v5/search/${encodedAddress}`, color: '#2DB400' },
+    ];
+
+    return (
+        <div className="map-modal-overlay" onClick={onClose}>
+            <div className="map-modal-content" onClick={e => e.stopPropagation()}>
+                <h3 style={{margin: '0 0 15px 0', textAlign: 'center'}}>選擇地圖開啟</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    {mapLinks.map(link => (
+                        <a 
+                            key={link.name} 
+                            href={link.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="map-link-btn"
+                            style={{ '--btn-color': link.color }}
+                            onClick={onClose}
+                        >
+                            {link.name} ↗
+                        </a>
+                    ))}
+                </div>
+                <button onClick={onClose} className="map-cancel-btn">取消</button>
+            </div>
+        </div>
+    );
+  };
+
   // --- Card Components ---
 
   // 🔥 1. TransportCard
@@ -180,41 +219,90 @@ export default function TripDetails() {
     const isPublic = t.sub_type === 'public'; 
     const isSimpleView = isPublic && (!item.start_time || !item.end_time);
 
+    // 格式化地點顯示
+    const formatLocation = (locName, terminal) => {
+        if (!locName) return '未設定地點';
+        return terminal ? `${locName} (${terminal})` : locName;
+    };
+
     if (isSimpleView) {
       return (
         <div onClick={() => openEditItemModal(item)} className="card simple-card">
           <div className="simple-card-content">
             <span className="icon-text"><span className="icon">🚌</span><span>{t.duration_text || '移動'}</span></span>
             <span className="separator">|</span>
-            <span className="location-flow"><span>{item.location_name?.split(' ')[0] || '起點'}</span><span className="arrow">➤</span><span>{t.arrival_location?.split(' ')[0] || '終點'}</span></span>
+            <span className="location-flow"><span>{item.location_name || '起點'}</span><span className="arrow">➤</span><span>{t.arrival_location || '終點'}</span></span>
           </div>
         </div>
       )
     }
+
     return (
       <div onClick={() => openEditItemModal(item)} className="card transport-card">
+        {/* Header */}
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
           <span>{isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}</span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
         </div>
-        <div className="card-body transport-body">
-          <div className="time-col">
-            <div className="time-text">{formatDisplayTime(isArrivalCard ? t.original_start_time : item.start_time)}{isArrivalCard && <sup className="offset-text">-1</sup>}</div>
-            <div className="place-text">{item.location_name?.split(' ')[0] || '出發地'}</div>
-            <div className="terminal-text">{t.departure_terminal || ''}</div>
+
+        <div className="card-body transport-body-new">
+          {/* 上層：時間與耗時資訊 */}
+          <div className="transport-time-row">
+             <div className="time-big">{formatDisplayTime(isArrivalCard ? t.original_start_time : item.start_time)}{isArrivalCard && <sup className="offset-text">-1</sup>}</div>
+             
+             <div className="duration-badge">
+                <span className="duration-icon">{isCarMode ? '🚗' : (isPublic ? '🚌' : '✈️')}</span>
+                <span className="duration-val">{t.duration_text || '--'}</span>
+             </div>
+             
+             <div className="time-big">{formatDisplayTime(isArrivalCard ? item.start_time : item.end_time)}{!isArrivalCard && t.arrival_day_offset > 0 && <sup className="offset-text">+{t.arrival_day_offset}</sup>}</div>
           </div>
-          <div className="duration-col">
-            <div className={`duration-text ${isCarMode||isPublic ? 'text-green' : 'text-blue'}`}>{t.duration_text || '--'}</div>
-            <div className="arrow-graphic">────────➝</div>
-            {(isCarMode||isPublic) && t.distance_text && <div className="sub-info">📏 {t.distance_text}</div>}
-            {(isCarMode||isPublic) && t.buffer_time > 0 && <div className="sub-info text-red">+Buffer {t.buffer_time}m</div>}
-            {item.cost > 0 && <div className="cost-text">${item.cost}</div>}
+
+          {/* 輔助資訊：距離與 Buffer */}
+          {(t.distance_text || t.buffer_time > 0) && (
+              <div className="transport-meta-row">
+                 {t.distance_text && <span>📏 {t.distance_text}</span>}
+                 {t.buffer_time > 0 && <span className="text-red"> (+Buffer {t.buffer_time}m)</span>}
+              </div>
+          )}
+
+          {/* 下層：起迄點列表 (Timeline Style) */}
+          <div className="transport-loc-list">
+              {/* 起點 */}
+              <div className="loc-item">
+                  <div className="timeline-col">
+                      <div className="dot dot-start"></div>
+                      <div className="line"></div>
+                  </div>
+                  <div className="loc-content">
+                      <div className="loc-label">Departs</div>
+                      <div className="loc-name">{formatLocation(item.location_name, t.departure_terminal)}</div>
+                  </div>
+              </div>
+              
+              {/* 終點 */}
+              <div className="loc-item">
+                  <div className="timeline-col">
+                      <div className="line-top"></div>
+                      <div className="dot dot-end"></div>
+                  </div>
+                  <div className="loc-content">
+                      <div className="loc-label">Arrives</div>
+                      <div className="loc-name">{formatLocation(t.arrival_location, t.arrival_terminal)}</div>
+                  </div>
+              </div>
           </div>
-          <div className="time-col">
-             <div className="time-text">{formatDisplayTime(isArrivalCard ? item.start_time : item.end_time)}{!isArrivalCard && t.arrival_day_offset > 0 && <sup className="offset-text">+{t.arrival_day_offset}</sup>}</div>
-            <div className="place-text">{t.arrival_location?.split(' ')[0] || '抵達地'}</div>
-            <div className="terminal-text">{t.arrival_terminal || ''}</div>
-          </div>
+
+          {/* 顯示備註 */}
+          {item.notes && (
+            <div className="transport-notes">
+               <span className="note-icon">📝</span>
+               <span className="note-text">{item.notes}</span>
+            </div>
+          )}
+
+          {/* 價格顯示在右下角 */}
+          {item.cost > 0 && <div className="transport-cost-tag">${item.cost}</div>}
         </div>
       </div>
     )
@@ -235,7 +323,7 @@ export default function TripDetails() {
                 <div>
                     <div className="acc-name">{item.location_name}</div>
                     <div className="acc-address">📍 {item.address}</div>
-                    {acc.phone && <div className="acc-phone">📞 {acc.phone}</div>}
+                    {/* ✨ 已移除電話顯示 */}
                 </div>
                 <div className="acc-cost-col">
                     {item.cost > 0 && <div className="acc-cost">{acc.currency} ${item.cost}</div>}
@@ -259,25 +347,43 @@ export default function TripDetails() {
     const duration = calculateDuration(item.start_time, item.end_time); 
     const getCategoryIcon = (cat) => { switch(cat) { case 'food': return '🍴'; case 'accommodation': return '🛏️'; default: return '🎡'; } }
     const todayHours = getTodayOpeningHours(selectedDay.day_date, item.opening_hours);
+
+    const displayStart = item.start_time ? formatDisplayTime(item.start_time) : '';
+    const displayEnd = item.end_time ? formatDisplayTime(item.end_time) : '';
+
     return (
       <li onClick={() => openEditItemModal(item)} className="card general-card">
         <div className="general-left">
           <div className="category-icon">{getCategoryIcon(item.category)}</div>
           <div className="general-content">
             <div className="general-name">{item.name}</div>
-            {item.address && <div className="general-sub">📍 {item.address}</div>}
-            {item.phone && <div className="general-sub">📞 {item.phone}</div>}
+            
+            {item.address && (
+                <div 
+                    className="general-sub map-pin-container" 
+                    onClick={(e) => {
+                        e.stopPropagation(); 
+                        setMapSelectorAddress(item.address);
+                    }}
+                >
+                    <span className="map-pin-icon">📍</span> 
+                    <span className="map-pin-hint">開啟地圖</span>
+                </div>
+            )}
+            
+            {/* ✨ 已移除電話顯示 */}
+            
             {todayHours && <div className="opening-hours-tag">🕒 {todayHours}</div>}
             {item.notes && <div className="general-sub">📝 {item.notes}</div>}
           </div>
         </div>
         <div className="general-right">
-          <div className="time-display">{formatDisplayTime(item.start_time) || '--:--'}</div>
+          <div className="time-display">{displayStart}</div>
           <div className="duration-display">
             {duration && <span className="duration-tag">{duration}</span>}
-            <span className="arrow-small">──➝</span>
+            {(displayStart || displayEnd) && <span className="arrow-small">──➝</span>}
           </div>
-          <div className="time-display">{formatDisplayTime(item.end_time) || '--:--'}</div>
+          <div className="time-display">{displayEnd}</div>
         </div>
       </li>
     )
@@ -306,70 +412,77 @@ export default function TripDetails() {
 
   return (
     <div className="container trip-details-page">
-      {/* ✨ CSS 修正：通用型灰底風格 (Universal Gray Theme) */}
+      {/* ✨ CSS 設定 */}
       <style>{`
-        /* ================= 🎨 變數定義：灰底風格 ================= */
         :root {
-            /* 基礎背景：使用舒適的淺灰色，類似 Trello/Notion 的 Dashboard 風格 */
-            --bg-body: #F3F4F6; 
+            --primary: #3b82f6;       
+            --primary-hover: #2563eb;
+            --radius-card: 16px;
+            --radius-btn: 12px;
+            --glass-blur: blur(12px);
+
+            --bg-body: #f8fafc;       
+            --bg-sidebar: rgba(255, 255, 255, 0.8);
+            --bg-content-header: rgba(255, 255, 255, 0.9);
             
-            /* 側邊欄：白色帶一點透明，與灰底區隔 */
-            --bg-sidebar: rgba(255, 255, 255, 0.85);
+            --bg-card: #ffffff;       
+            --border-card: #e2e8f0;   
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+
+            --text-main: #0f172a;     
+            --text-sub: #475569;
+            --text-muted: #94a3b8;
             
-            /* 內容區域標頭：純白 */
-            --bg-content-header: #ffffff;
+            --day-item-hover: #f1f5f9;
+            --day-item-active-bg: #ffffff;
+            --day-item-active-text: #3b82f6;
             
-            /* 卡片背景：強制純白，確保對比度最高 */
-            --bg-card: #ffffff; 
-            
-            /* 文字顏色：深灰至黑色，閱讀性最佳 */
-            --text-main: #1F2937; /* 接近黑色 */
-            --text-sub: #4B5563;  /* 深灰色 */
-            --text-muted: #9CA3AF; /* 淺灰色 */
-            
-            /* 邊框線條 */
-            --border-light: #E5E7EB;
-            
-            /* 主色調 */
-            --primary: #2563EB; /* 鮮豔的藍色，在灰底上很清楚 */
-            --primary-bg: #DBEAFE;
-            
-            /* 天數選單 */
-            --day-item-bg: transparent;
-            --day-item-bg-hover: #E5E7EB;
-            --day-item-bg-active: #ffffff;
-            
-            /* 陰影：增加立體感 */
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            
-            --glass-blur: blur(8px);
-            --border-radius-lg: 16px;
-            --border-radius-md: 12px;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e1;
         }
 
-        /* 全頁設定：強制背景色，不使用圖片 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-body: #0f172a;     
+                --bg-sidebar: rgba(30, 41, 59, 0.75); 
+                --bg-content-header: rgba(30, 41, 59, 0.85);
+                --bg-card: #1e293b;     
+                --border-card: #334155; 
+                --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+                --text-main: #f1f5f9;   
+                --text-sub: #cbd5e1;
+                --text-muted: #64748b;
+                --day-item-hover: #1e293b;
+                --day-item-active-bg: #1e293b;
+                --day-item-active-text: #60a5fa;
+                --input-bg: #0f172a;
+                --input-border: #475569;
+            }
+        }
+
         .trip-details-page {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: var(--text-main);
-            background-color: var(--bg-body); /* ✨ 強制灰底 */
+            background-color: var(--bg-body); 
             min-height: 100vh;
             padding: 20px;
             box-sizing: border-box;
+            
+            max-width: 1280px; 
+            margin: 0 auto;
+            width: 100%;
         }
 
-        .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; }
+        .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; z-index: 1; }
 
-        /* --- 側邊欄 (Left Sidebar) --- */
         .sidebar { 
             width: 240px; 
             padding: 16px;
             background: var(--bg-sidebar); 
             backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--border-light);
-            border-radius: var(--border-radius-lg);
-            box-shadow: var(--shadow-sm);
-            
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
             overflow-y: auto; 
             max-height: 80vh; 
             position: sticky; 
@@ -380,147 +493,265 @@ export default function TripDetails() {
             padding: 12px 16px; 
             cursor: pointer; 
             margin-bottom: 8px; 
-            border-radius: var(--border-radius-md); 
+            border-radius: var(--radius-btn); 
             transition: all 0.2s ease; 
-            background: var(--day-item-bg);
             color: var(--text-sub);
             border: 1px solid transparent;
         }
         
-        .day-item:hover { 
-            background: var(--day-item-bg-hover);
-            color: var(--text-main);
-        }
+        .day-item:hover { background: var(--day-item-hover); color: var(--text-main); }
 
-        /* 選中狀態：變成白色卡片，浮起來 */
         .day-item-active {
-            background-color: var(--day-item-bg-active) !important;
-            color: var(--primary) !important;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border-light);
-            font-weight: bold;
+            background-color: var(--day-item-active-bg) !important;
+            color: var(--day-item-active-text) !important;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-card);
+            font-weight: 600;
         }
         
-        .day-item-active .day-item-text-title { color: var(--primary); }
+        .day-item-active .day-item-text-title { color: var(--day-item-active-text); }
         .day-item-active .day-item-text-date { color: var(--text-sub); }
 
         .day-item-text-title { font-weight: 600; font-size: 1rem; }
         .day-item-text-date { font-size: 0.85rem; margin-top: 4px; opacity: 0.8; }
 
-        /* --- 右側內容區 --- */
-        .content-area { flex: 1; }
-        
-        .day-header { 
-            margin-bottom: 24px; 
-            padding: 24px; 
-            background: var(--bg-content-header); 
-            border-radius: var(--border-radius-lg); 
-            border: 1px solid var(--border-light);
-            box-shadow: var(--shadow-sm);
-        }
-        
-        .day-header-date { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
-        .day-header-h2 { margin: 0; white-space: nowrap; font-size: 2rem; color: var(--text-main); font-weight: 800; letter-spacing: -0.5px; }
-        
-        .day-title-input { 
-            font-size: 1.25rem; 
-            padding: 10px 16px; 
-            border-radius: 8px; 
+        .content-area { 
             flex: 1; 
             min-width: 0; 
-            border: 2px solid var(--border-light); 
-            background: #FAFAFA;
-            color: var(--text-main);
-            transition: border-color 0.2s;
         }
-        .day-title-input:focus { outline: none; border-color: var(--primary); background: #ffffff; }
-
-        /* 🔥 卡片通用樣式：純白底，深色字，確保任何螢幕都清楚 */
+        
         .card {
             background-color: var(--bg-card) !important; 
             color: var(--text-main) !important;
-            border-radius: var(--border-radius-md);
-            box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
             margin-bottom: 16px;
             overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid var(--border-light);
+            border: 1px solid var(--border-card);
             list-style: none;
+            
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
-        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #d1d5db; }
+        .card:hover { transform: translateY(-2px); border-color: var(--primary); }
 
-        /* Transport Card */
+        .transport-card { 
+            position: relative; 
+        }
+        
+        .transport-body-new {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .transport-time-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border-card);
+        }
+        .time-big {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+        .duration-badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .transport-meta-row {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: -5px;
+        }
+        .text-red { color: #ef4444; }
+
+        .transport-loc-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .loc-item {
+            display: flex;
+            gap: 12px;
+            position: relative;
+            min-height: 40px; 
+        }
+        
+        .timeline-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 16px;
+            padding-top: 6px;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #cbd5e1;
+            z-index: 1;
+        }
+        .dot-start { background: var(--primary); }
+        .dot-end { background: #ef4444; } 
+        
+        .line {
+            flex: 1;
+            width: 2px;
+            background: #e2e8f0;
+            margin-top: -2px;
+            margin-bottom: -4px;
+            min-height: 20px;
+        }
+        .line-top {
+            width: 2px;
+            background: #e2e8f0;
+            height: 10px;
+            margin-bottom: -2px;
+        }
+
+        .loc-content { flex: 1; padding-bottom: 12px; }
+        .loc-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .loc-name {
+            font-size: 1rem;
+            color: var(--text-main);
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .transport-notes {
+            margin-top: 5px;
+            padding: 10px;
+            background: rgba(128,128,128,0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .note-icon { font-size: 1rem; }
+        .note-text { line-height: 1.4; white-space: pre-wrap; }
+
+        .transport-cost-tag {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--text-sub);
+        }
+
         .card-header { padding: 12px 20px; font-size: 0.95rem; font-weight: bold; display: flex; justify-content: space-between; color: white; }
-        .header-blue { background: #3B82F6; } /* 純藍 */
-        .header-green { background: #10B981; } /* 純綠 */
-        .header-orange { background: #F59E0B; } /* 純橘 */
-        
-        .card-body { padding: 20px; }
-        .transport-body { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .time-col { flex: 1; min-width: 80px; text-align: center; }
-        .duration-col { flex: 1.5; text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .time-text { font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
-        .place-text { font-size: 0.95rem; color: var(--text-sub); margin-top: 4px; font-weight: 600; }
-        .terminal-text { font-size: 0.8rem; color: var(--text-muted); background: #F3F4F6; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 6px; }
-        
-        .arrow-graphic { color: #D1D5DB; font-size: 0.8rem; margin: 4px 0; }
-        .duration-text { font-weight: bold; font-size: 0.9rem; color: var(--text-sub); }
-        .text-blue { color: #2563EB; }
-        .text-green { color: #059669; }
-        .cost-text { margin-top: 5px; font-size: 0.85rem; font-weight: bold; color: #4B5563; background: #F3F4F6; padding: 4px 10px; border-radius: 20px; }
+        .header-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); } 
+        .header-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); } 
+        .header-orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); } 
 
-        /* General Layout */
         .general-card { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
         .general-left { display: flex; align-items: flex-start; gap: 16px; flex: 1; }
-        .category-icon { font-size: 1.8rem; background: #F3F4F6; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; color: #4B5563; }
+        .category-icon { font-size: 1.8rem; background: rgba(128,128,128,0.1); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; color: var(--text-sub); }
         .general-content { display: flex; flex-direction: column; gap: 4px; }
         .general-name { font-weight: 700; font-size: 1.1rem; color: var(--text-main); line-height: 1.4; }
+        
         .general-sub { font-size: 0.9rem; color: var(--text-sub); display: flex; align-items: center; gap: 5px; }
-        .opening-hours-tag { font-size: 0.8rem; background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; align-self: flex-start; }
+        .map-pin-container { cursor: pointer; display: inline-flex; align-items: center; transition: transform 0.1s; padding: 4px 0; }
+        .map-pin-container:hover { transform: scale(1.05); }
+        .map-pin-icon { font-size: 1.2rem; }
+        .map-pin-hint { font-size: 0.8rem; color: var(--primary); text-decoration: underline; margin-left: 2px; }
+
+        .opening-hours-tag { font-size: 0.8rem; background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; align-self: flex-start; }
         
         .general-right { text-align: right; min-width: 90px; padding-left: 10px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
-        .time-display { font-weight: 800; color: var(--text-main); font-size: 1rem; }
-        .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 4px 0; }
-        .duration-tag { font-size: 0.75rem; background: #F3F4F6; padding: 2px 8px; border-radius: 4px; color: #6B7280; }
-        .arrow-small { font-size: 0.7rem; color: #D1D5DB; }
+        .time-display { font-weight: 800; color: var(--text-main); font-size: 1rem; min-height: 1rem; }
+        .duration-display { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 4px 0; min-height: 1rem; }
+        .duration-tag { font-size: 0.75rem; background: rgba(128,128,128,0.1); padding: 2px 8px; border-radius: 4px; color: var(--text-muted); }
+        .arrow-small { font-size: 0.7rem; color: var(--text-muted); }
 
-        /* Simple Card */
-        .simple-card { cursor: pointer; padding: 14px 20px; background: #ffffff; }
+        .simple-card { cursor: pointer; padding: 14px 20px; background: var(--bg-card); }
         .simple-card-content { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--text-sub); }
         .icon-text { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-main); }
+        .note-card { padding: 20px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.05) !important; }
         
-        /* Note Layout */
-        .note-card { padding: 20px; border-left: 4px solid #F59E0B; background: #FFFBEB !important; }
-        
-        /* Header Buttons */
         .header-btn {
             padding: 8px 16px;
-            background: #ffffff;
-            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             border-radius: 20px;
             cursor: pointer;
             color: var(--text-main);
             font-weight: 600;
-            box-shadow: var(--shadow-sm);
+            box-shadow: var(--shadow-card);
             transition: all 0.2s;
         }
-        .header-btn:hover { background: #F9FAFB; border-color: #D1D5DB; }
-        .header-btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-        .header-btn-primary:hover { background: #1D4ED8; }
+        .header-btn:hover { background: var(--day-item-hover); border-color: var(--primary); }
+        
+        .attachment-link { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-body); border: 1px solid var(--border-card); padding: 6px 12px; border-radius: 20px; text-decoration: none; color: var(--text-sub); font-size: 0.85rem; transition: background 0.2s; }
+        .attachment-link:hover { border-color: var(--primary); color: var(--primary); }
 
-        /* RWD: Mobile */
+        .map-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .map-modal-content {
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: var(--radius-card);
+            width: 90%; max-width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: fadeIn 0.2s ease;
+        }
+        .map-link-btn {
+            display: block; padding: 12px;
+            text-align: center;
+            border-radius: var(--radius-btn);
+            background: #f0f0f0;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background-color: var(--btn-color);
+            transition: transform 0.1s;
+        }
+        .map-link-btn:active { transform: scale(0.98); }
+        .map-cancel-btn {
+            margin-top: 15px; width: 100%; padding: 10px;
+            background: transparent; border: 1px solid var(--border-card);
+            border-radius: var(--radius-btn);
+            color: var(--text-sub); cursor: pointer;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
         @media (max-width: 768px) {
           .trip-details-page { padding: 10px; }
           .layout-container { flex-direction: column; gap: 16px; }
           .sidebar { 
-            width: 100%; 
-            border-right: none; 
-            border-bottom: 1px solid var(--border-light); 
-            padding: 12px;
-            display: flex; 
-            overflow-x: auto; 
-            white-space: nowrap;
-            background: #ffffff;
+            width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
+            padding: 12px; display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
           }
           .day-item { min-width: 80px; text-align: center; margin-right: 8px; margin-bottom: 0; padding: 8px 12px; }
           .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
@@ -529,6 +760,13 @@ export default function TripDetails() {
           .general-name { font-size: 1rem; }
         }
       `}</style>
+
+      {mapSelectorAddress && (
+          <MapSelectorModal 
+            address={mapSelectorAddress} 
+            onClose={() => setMapSelectorAddress(null)} 
+          />
+      )}
 
       {showSettings && <TripSettingsModal trip={trip} onClose={() => setShowSettings(false)} onUpdate={handleRefresh} />}
       
@@ -555,21 +793,15 @@ export default function TripDetails() {
         />
       )}
 
-      {/* Header Info */}
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding: '0 5px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding: '0 5px', position: 'relative', zIndex: 2}}>
         <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', display:'inline-flex', alignItems: 'center', marginBottom:'15px', fontWeight: 'bold' }}>← 返回列表</Link>
         <div style={{display:'flex', gap:'10px'}}>
-            <button 
-                onClick={() => setShowShareModal(true)} 
-                className="header-btn"
-            >
-                🔗 分享
-            </button>
+            <button onClick={() => setShowShareModal(true)} className="header-btn">🔗 分享</button>
             <button onClick={() => setShowSettings(true)} className="header-btn">⚙️ 設定</button>
         </div>
       </div>
       
-      <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '20px', marginBottom: '24px', paddingLeft: '5px' }}>
+      <div style={{ borderBottom: '1px solid var(--border-card)', paddingBottom: '20px', marginBottom: '24px', paddingLeft: '5px', position: 'relative', zIndex: 2 }}>
         <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'var(--text-main)', fontWeight: '800' }}>{trip.title}</h1>
         <div style={{ color: 'var(--text-sub)', fontSize: '15px', display:'flex', flexWrap: 'wrap', gap: '24px', fontWeight: '500' }}>
           <span style={{display:'flex', alignItems:'center', gap:'6px'}}>📅 {trip.start_date} ~ {trip.end_date}</span>
@@ -581,7 +813,6 @@ export default function TripDetails() {
       </div>
 
       <div className="layout-container">
-        {/* 左側選單 */}
         <div className="sidebar">
           {days.map(day => (
             <div 
@@ -595,18 +826,9 @@ export default function TripDetails() {
           ))}
         </div>
 
-        {/* 右側詳細行程 */}
         <div className="content-area">
           {selectedDay && (
             <>
-              <div className="day-header">
-                <div className="day-header-date">{selectedDay.day_date} <span style={{color: 'var(--primary)'}}>({getWeekday(selectedDay.day_date)})</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <h2 className="day-header-h2">Day {selectedDay.day_number}</h2>
-                  <input className="day-title-input" type="text" value={selectedDay.title || ''} onChange={handleTitleChange} onBlur={handleTitleUpdate} placeholder="輸入當日重點 (例: 移動日)" />
-                </div>
-              </div>
-               
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
