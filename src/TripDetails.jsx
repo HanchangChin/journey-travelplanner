@@ -30,6 +30,9 @@ export default function TripDetails() {
   const [showItemModal, setShowItemModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  
+  // 🔥 新增：用來記錄要「插入」的排序位置
+  const [insertSortOrder, setInsertSortOrder] = useState(null)
 
   // ✨ 控制地圖選擇視窗的狀態
   const [mapSelectorAddress, setMapSelectorAddress] = useState(null)
@@ -132,8 +135,37 @@ export default function TripDetails() {
     setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
   }
 
-  const openNewItemModal = () => { setEditingItem(null); setShowItemModal(true); }
+  // 🔥 修改：開啟新增 Modal 時，清空插入位置（代表新增到最後）
+  const openNewItemModal = () => { 
+    setEditingItem(null); 
+    setInsertSortOrder(null); // Reset
+    setShowItemModal(true); 
+  }
+  
   const openEditItemModal = (item) => { setEditingItem(item); setShowItemModal(true); }
+
+  // 🔥 新增：處理「插入」特定位置的邏輯
+  const handleInsertAfter = (currentItemIndex) => {
+    const currentDayItems = items.filter(item => item.trip_day_id === selectedDay?.id);
+    const currentItem = currentDayItems[currentItemIndex];
+    const nextItem = currentDayItems[currentItemIndex + 1];
+
+    // 計算新的 sort_order。如果有下一個項目，取兩者中間值；如果沒有，則取當前 + 1 (或是交給 Modal 預設邏輯)
+    // 這裡我們簡單做：傳入目標順序。
+    // 如果你的資料庫 sort_order 是整數，建議在 EditItemModal 存檔時處理重新排序，
+    // 或者這裡我們傳遞一個浮點數 (如果是支援浮點數排序)，或單純傳遞 "在這個ID之後"。
+    // 為了維持功能簡單，我們傳遞一個 "期望的 sort_order"。
+    let targetOrder;
+    if (nextItem) {
+        targetOrder = (currentItem.sort_order + nextItem.sort_order) / 2;
+    } else {
+        targetOrder = currentItem.sort_order + 100; // 隨意增加
+    }
+
+    setEditingItem(null);
+    setInsertSortOrder(targetOrder);
+    setShowItemModal(true);
+  };
 
   const handleRefresh = () => {
       queryClient.invalidateQueries(['tripDetails', tripId])
@@ -207,6 +239,14 @@ export default function TripDetails() {
         </div>
     );
   };
+
+  // 🔥 新增：GapInserter 元件 (插在行程卡之間的 UI)
+  const GapInserter = ({ onInsert }) => (
+    <div className="gap-inserter-container" onClick={(e) => e.stopPropagation()}>
+        <div className="gap-line"></div>
+        <button className="gap-plus-btn" onClick={onInsert}>+</button>
+    </div>
+  );
 
   // --- Card Components ---
 
@@ -497,21 +537,21 @@ export default function TripDetails() {
       {/* ✨ CSS 設定 */}
       <style>{`
         :root {
-            --primary: #3b82f6;       
+            --primary: #3b82f6;        
             --primary-hover: #2563eb;
             --radius-card: 16px;
             --radius-btn: 12px;
             --glass-blur: blur(12px);
 
-            --bg-body: #f8fafc;       
+            --bg-body: #f8fafc;        
             --bg-sidebar: rgba(255, 255, 255, 0.8);
             --bg-content-header: rgba(255, 255, 255, 0.9);
             
-            --bg-card: #ffffff;       
-            --border-card: #e2e8f0;   
+            --bg-card: #ffffff;        
+            --border-card: #e2e8f0;    
             --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
 
-            --text-main: #0f172a;     
+            --text-main: #0f172a;      
             --text-sub: #475569;
             --text-muted: #94a3b8;
             
@@ -523,15 +563,70 @@ export default function TripDetails() {
             --input-border: #cbd5e1;
         }
 
+        /* 🔥 新增 Gap Inserter 樣式 */
+        .gap-inserter-container {
+            position: relative;
+            height: 24px; /* 感應區高度 */
+            margin: -12px 0; /* 讓它能夠重疊在卡片的 margin 間隙 */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 25px; /* 左側對齊位置 */
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+        }
+        .gap-inserter-container:hover {
+            opacity: 1;
+        }
+        .gap-line {
+            position: absolute;
+            left: 35px; /* 對齊圖示的中心 */
+            top: 0;
+            bottom: 0;
+            width: 0;
+            border-left: 2px dashed #cbd5e1;
+        }
+        /* 修改後的按鈕樣式：只有 + 號，沒有圓底 */
+.gap-plus-btn {
+    background: transparent; /* 移除藍色背景 */
+    color: var(--text-muted); /* 平常顯示為灰色，比較不搶眼 */
+    border: none;
+    
+    /* 調整字體大小與位置 */
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+    
+    /* 讓點擊範圍保持適中 */
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    cursor: pointer;
+    z-index: 2;
+    margin-left: -3px; /* 微調讓 + 號對齊虛線中心 */
+    transition: all 0.2s ease;
+}
+
+.gap-plus-btn:hover {
+    color: var(--primary); /* 滑鼠移上去變藍色 */
+    transform: scale(1.2); /* 稍微放大 */
+    background: transparent;
+}
+
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg-body: #0f172a;     
+                --bg-body: #0f172a;      
                 --bg-sidebar: rgba(30, 41, 59, 0.75); 
                 --bg-content-header: rgba(30, 41, 59, 0.85);
-                --bg-card: #1e293b;     
+                --bg-card: #1e293b;      
                 --border-card: #334155; 
                 --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-                --text-main: #f1f5f9;   
+                --text-main: #f1f5f9;    
                 --text-sub: #cbd5e1;
                 --text-muted: #64748b;
                 --day-item-hover: #1e293b;
@@ -798,6 +893,8 @@ export default function TripDetails() {
           currentItemsCount={currentDayItems.length}
           onClose={() => setShowItemModal(false)} 
           onSave={handleRefresh} 
+          // 🔥 新增：傳遞排序參數給 Modal (需自行確認 Modal 是否有接收此 props)
+          initialSortOrder={insertSortOrder}
         />
       )}
 
@@ -847,7 +944,7 @@ export default function TripDetails() {
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {currentDayItems.map(item => (
+                    {currentDayItems.map((item, index) => (
                         <SortableItem key={item.id} id={item.id}>
                           {(() => {
                              if (item.category === 'transport') return <TransportCard item={item} />
@@ -855,6 +952,8 @@ export default function TripDetails() {
                              if (item.category === 'note') return <NoteCard item={item} />
                              return <GeneralCard item={item} />
                           })()}
+                          {/* 🔥 修改：在每個項目下方加入插入點 */}
+                          <GapInserter onInsert={() => handleInsertAfter(index)} />
                         </SortableItem>
                     ))}
                   </ul>
@@ -862,7 +961,7 @@ export default function TripDetails() {
               </DndContext>
                
               <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
-                <span>➕</span> 新增行程
+                <span>➕</span> 新增行程 (最底部)
               </button>
             </>
           )}

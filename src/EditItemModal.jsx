@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { Autocomplete } from '@react-google-maps/api'
 
-export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, onClose, onSave, tripMembers = [], is24hr = true, isLoaded, currentItemsCount = 0 }) {
+// ✨ 修改 1: 在參數中加入 initialSortOrder
+export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, onClose, onSave, tripMembers = [], is24hr = true, isLoaded, currentItemsCount = 0, initialSortOrder = null }) {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [autocompleteDep, setAutocompleteDep] = useState(null)
   const [autocompleteArr, setAutocompleteArr] = useState(null)
   const [autocompleteHotel, setAutocompleteHotel] = useState(null)
-  
+   
   const [formData, setFormData] = useState({
     name: '', category: 'activity', start_time: '', end_time: '',
     location_name: '', google_place_id: '', 
@@ -186,7 +187,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
       if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from('TRIP-ATTACHMENT').getPublicUrl(filePath)
-      
+       
       setFormData(prev => ({
           ...prev, attachment_url: data.publicUrl,
           attachment_type: file.type.startsWith('image/') ? 'image' : 'pdf'
@@ -293,7 +294,14 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
       if (itemToEdit) {
           newSortOrder = itemToEdit.sort_order;
       } else {
-          newSortOrder = formData.category === 'accommodation' ? 9000 : currentItemsCount + 1;
+          // ✨ 修改 2: 插入順序邏輯 (優先權：住宿固定 > 指定插入 > 預設最後)
+          if (formData.category === 'accommodation') {
+              newSortOrder = 9000;
+          } else if (initialSortOrder) {
+              newSortOrder = initialSortOrder;
+          } else {
+              newSortOrder = (currentItemsCount + 1) * 1024; // 配合前一步驟建議的間隔，確保後續插入有空間
+          }
       }
 
       const payload = {
@@ -331,7 +339,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
   const removeTraveler = (idx) => { setDetails(prev => ({ ...prev, travelers: details.travelers.filter((_, i) => i !== idx) })) }
 
   const categories = [ { value: 'activity', label: '🎡 景點/活動' }, { value: 'food', label: '🍴 餐廳/美食' }, { value: 'accommodation', label: '🛏️ 住宿' }, { value: 'transport', label: '🚆 交通/航班' }, { value: 'note', label: '📝 筆記/檔案' }, { value: 'other', label: '📝 其他' } ]
-  
+   
   if (!isLoaded) return <div style={{padding:'20px'}}>Google Maps Loading...</div>
 
   return (
