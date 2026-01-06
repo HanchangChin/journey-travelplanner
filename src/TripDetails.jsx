@@ -10,12 +10,62 @@ import { useJsApiLoader } from '@react-google-maps/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 // ✨ DND Kit Imports
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { SortableItem } from './SortableItem';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// ⚠️ 注意：移除了原本的 SortableItem import，改為在下方直接定義，以便客製化手柄邏輯
+// import { SortableItem } from './SortableItem';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY 
 const LIBRARIES = ['places']
+
+// 🔥 改寫 SortableItem：加入「拖曳手柄」邏輯
+function SortableItem({ id, children, isTouchDevice }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: 'relative', // 讓手柄可以絕對定位
+        zIndex: isDragging ? 999 : 1,
+        touchAction: 'none' // 為了 DND Kit 運作
+    };
+
+    // 桌機版：整個卡片都可以拖曳
+    if (!isTouchDevice) {
+        return (
+            <li ref={setNodeRef} style={style} {...attributes} {...listeners} className="sortable-item-wrapper">
+                {children}
+            </li>
+        );
+    }
+
+    // 手機版：卡片本體允許捲動 (pan-y)，另外顯示 Drag Handle
+    return (
+        <li ref={setNodeRef} style={style} className="sortable-item-wrapper mobile-sortable">
+            {/* 內容區域：不綁定 listeners，允許捲動 */}
+            <div className="card-content-wrapper">
+                {children}
+            </div>
+
+            {/* 🔥 拖曳手柄：只在這裡綁定 listeners */}
+            <div className="drag-handle" {...attributes} {...listeners}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{opacity: 0.4}}>
+                    <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                </svg>
+            </div>
+        </li>
+    );
+}
 
 export default function TripDetails() {
   const { tripId } = useParams()
@@ -31,29 +81,31 @@ export default function TripDetails() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   
-  // 🔥 新增：用來記錄要「插入」的排序位置
   const [insertSortOrder, setInsertSortOrder] = useState(null)
-
-  // ✨ 控制地圖選擇視窗的狀態
   const [mapSelectorAddress, setMapSelectorAddress] = useState(null)
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
-  // 🚫 只在「非觸控裝置」啟用拖曳排序，避免手機上阻擋正常捲動
+  // 判斷是否為觸控裝置
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
+  // 🔥 修正 Sensors：手機版改用 TouchSensor 並設定啟用限制
   const sensors = useSensors(
-    // 桌機 / 滑鼠裝置才啟用 PointerSensor
-    ...(!isTouchDevice ? [useSensor(PointerSensor, { activationConstraint: { distance: 5 } })] : []),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), // 桌機防誤觸
+    useSensor(TouchSensor, { 
+        // 手機版：只有觸碰 "Handle" (有 listeners 的區域) 且移動 5px 後才開始拖曳
+        // 這邊的 delay 設為 0，因為我們已經用 Handle 分離了操作區域
+        activationConstraint: { delay: 0, tolerance: 5 } 
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   // --- Helpers ---
-  // 🔥 新增：處理卡片互動的 Custom Hook (解決手機誤觸問題)
+  // 🔥 處理卡片互動的 Custom Hook (長按編輯)
   const useCardInteraction = (item) => {
     const timerRef = useRef(null);
 
-    // 如果是電腦版 (滑鼠)，維持原本的點擊行為
+    // 桌機版：維持點擊即編輯
     if (!isTouchDevice) {
         return { 
             onClick: () => openEditItemModal(item),
@@ -61,13 +113,12 @@ export default function TripDetails() {
         };
     }
 
-    // 如果是手機版 (觸控)，使用長按邏輯
+    // 手機版：長按編輯
     const handleTouchStart = () => {
         timerRef.current = setTimeout(() => {
-            // 觸發震動回饋 (如果裝置支援)
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             openEditItemModal(item);
-        }, 600); // 設定 600ms 為長按判定時間
+        }, 600); 
     };
 
     const clearTimer = () => {
@@ -80,13 +131,14 @@ export default function TripDetails() {
     return {
         onTouchStart: handleTouchStart,
         onTouchEnd: clearTimer,
-        onTouchMove: clearTimer, // 關鍵：如果手指移動(滑動頁面)，就取消編輯
-        onClick: (e) => {}, // 手機版禁用預設 click，避免誤觸
+        onTouchMove: clearTimer, 
+        onClick: (e) => {}, 
         style: { 
             cursor: 'default',
-            userSelect: 'none',           // 禁止文字選取
-            WebkitTouchCallout: 'none',   // 禁止 iOS 長按跳出選單
-            WebkitUserSelect: 'none'
+            userSelect: 'none',           
+            WebkitTouchCallout: 'none',   
+            WebkitUserSelect: 'none',
+            touchAction: 'pan-y' // 🔥 關鍵：允許內容區域垂直捲動
         }
     };
   };
@@ -181,16 +233,14 @@ export default function TripDetails() {
     setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
   }
 
-  // 🔥 修改：開啟新增 Modal 時，清空插入位置（代表新增到最後）
   const openNewItemModal = () => { 
     setEditingItem(null); 
-    setInsertSortOrder(null); // Reset
+    setInsertSortOrder(null); 
     setShowItemModal(true); 
   }
   
   const openEditItemModal = (item) => { setEditingItem(item); setShowItemModal(true); }
 
-  // 🔥 新增：處理「插入」特定位置的邏輯
   const handleInsertAfter = (currentItemIndex) => {
     const currentDayItems = items.filter(item => item.trip_day_id === selectedDay?.id);
     const currentItem = currentDayItems[currentItemIndex];
@@ -200,7 +250,7 @@ export default function TripDetails() {
     if (nextItem) {
         targetOrder = (currentItem.sort_order + nextItem.sort_order) / 2;
     } else {
-        targetOrder = currentItem.sort_order + 100; // 隨意增加
+        targetOrder = currentItem.sort_order + 100;
     }
 
     setEditingItem(null);
@@ -281,7 +331,6 @@ export default function TripDetails() {
     );
   };
 
-  // 🔥 新增：GapInserter 元件 (插在行程卡之間的 UI)
   const GapInserter = ({ onInsert }) => (
     <div className="gap-inserter-container" onClick={(e) => e.stopPropagation()}>
         <div className="gap-line"></div>
@@ -290,8 +339,6 @@ export default function TripDetails() {
   );
 
   // --- Card Components ---
-
-  // 🔥 1. TransportCard (修改版: 地點與標籤同一行，高度簡潔)
   const TransportCard = ({ item }) => {
     const t = item.transport_details || {};
     const travelers = t.travelers || [];
@@ -300,7 +347,6 @@ export default function TripDetails() {
     const isPublic = t.sub_type === 'public'; 
     const isSimpleView = isPublic && (!item.start_time || !item.end_time);
     
-    // 取得互動事件 Props
     const interactionProps = useCardInteraction(item);
 
     const formatLocation = (locName, terminal) => {
@@ -380,12 +426,10 @@ export default function TripDetails() {
     )
   }
 
-  // 🔥 2. AccommodationCard
   const AccommodationCard = ({ item }) => {
     const acc = item.accommodation_details || {};
     const isStay = acc.is_generated_stay; 
     
-    // 取得互動事件 Props
     const interactionProps = useCardInteraction(item);
 
     return (
@@ -403,7 +447,6 @@ export default function TripDetails() {
                             e.stopPropagation();
                             setMapSelectorAddress(item.address);
                         }}
-                        // 阻止事件冒泡到卡片的長按/點擊
                         onTouchStart={(e) => e.stopPropagation()} 
                     >
                         <span className="map-pin-icon">📍</span>
@@ -442,13 +485,11 @@ export default function TripDetails() {
     )
   }
 
-  // 🔥 3. GeneralCard
   const GeneralCard = ({ item }) => {
     const duration = calculateDuration(item.start_time, item.end_time); 
     const getCategoryIcon = (cat) => { switch(cat) { case 'food': return '🍴'; case 'accommodation': return '🛏️'; default: return '🎡'; } }
     const todayHours = getTodayOpeningHours(selectedDay.day_date, item.opening_hours);
 
-    // 取得互動事件 Props
     const interactionProps = useCardInteraction(item);
 
     const displayStart = item.start_time ? formatDisplayTime(item.start_time) : '';
@@ -463,7 +504,6 @@ export default function TripDetails() {
           <div className="general-content">
             <div className="general-name">{item.name}</div>
             
-            {/* 預約資訊 */}
             {showReservation && (
                 <div className="general-sub reservation-row">
                     {item.is_reserved ? 
@@ -475,7 +515,6 @@ export default function TripDetails() {
                 </div>
             )}
 
-            {/* 地點與營業時間 */}
             {(item.address || todayHours) && (
               <div className="general-sub" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 {item.address && (
@@ -517,10 +556,8 @@ export default function TripDetails() {
     )
   }
 
-  // 🔥 4. NoteCard (維持收合功能與 SVG Icon)
   const NoteCard = ({ item }) => {
       const [isExpanded, setIsExpanded] = useState(false);
-      // 取得互動事件 Props
       const interactionProps = useCardInteraction(item);
 
       return (
@@ -620,15 +657,47 @@ export default function TripDetails() {
             --input-border: #cbd5e1;
         }
 
-        /* 🔥 新增 Gap Inserter 樣式 */
+        /* 🔥 新增：Drag Handle 樣式 */
+        .mobile-sortable {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            width: 100%;
+        }
+        .card-content-wrapper {
+            flex: 1;
+            min-width: 0; /* 防止子元素撐開 */
+        }
+        .drag-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            cursor: grab;
+            touch-action: none; /* 只有手柄禁止捲動，用於拖曳 */
+            color: var(--text-muted);
+            flex-shrink: 0;
+            /* 稍微調整一下視覺，讓它跟卡片有點區隔 */
+            margin-bottom: 16px; 
+            background: rgba(128,128,128,0.05);
+            border-radius: var(--radius-card);
+            border: 1px dashed var(--border-card);
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
         .gap-inserter-container {
             position: relative;
-            height: 24px; /* 感應區高度 */
-            margin: -12px 0; /* 讓它能夠重疊在卡片的 margin 間隙 */
+            height: 24px; 
+            margin: -12px 0; 
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            padding-left: 25px; /* 左側對齊位置 */
+            padding-left: 25px; 
             z-index: 10;
             opacity: 0;
             transition: opacity 0.2s ease;
@@ -639,39 +708,33 @@ export default function TripDetails() {
         }
         .gap-line {
             position: absolute;
-            left: 35px; /* 對齊圖示的中心 */
+            left: 35px; 
             top: 0;
             bottom: 0;
             width: 0;
             border-left: 2px dashed #cbd5e1;
         }
-        /* 修改後的按鈕樣式：只有 + 號，沒有圓底 */
         .gap-plus-btn {
-            background: transparent; /* 移除藍色背景 */
-            color: var(--text-muted); /* 平常顯示為灰色，比較不搶眼 */
+            background: transparent; 
+            color: var(--text-muted); 
             border: none;
-            
-            /* 調整字體大小與位置 */
             font-size: 24px;
             font-weight: 400;
             line-height: 1;
-            
-            /* 讓點擊範圍保持適中 */
             width: 30px;
             height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            
             cursor: pointer;
             z-index: 2;
-            margin-left: -3px; /* 微調讓 + 號對齊虛線中心 */
+            margin-left: -3px; 
             transition: all 0.2s ease;
         }
 
         .gap-plus-btn:hover {
-            color: var(--primary); /* 滑鼠移上去變藍色 */
-            transform: scale(1.2); /* 稍微放大 */
+            color: var(--primary); 
+            transform: scale(1.2); 
             background: transparent;
         }
 
@@ -788,6 +851,7 @@ export default function TripDetails() {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
+            touch-action: pan-y !important; /* 確保內容區可以捲動 */
         }
         .card:hover { transform: translateY(-2px); border-color: var(--primary); }
 
@@ -799,7 +863,6 @@ export default function TripDetails() {
         .transport-meta-row { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: -5px; }
         .text-red { color: #ef4444; }
         
-        /* ✨ Transport 調整: 高度縮減與單行排列 */
         .transport-loc-list { display: flex; flex-direction: column; }
         .loc-item { display: flex; gap: 12px; position: relative; min-height: 28px; margin-bottom: 6px; } 
         .timeline-col { width: 16px; display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
@@ -809,7 +872,6 @@ export default function TripDetails() {
         .line { flex: 1; width: 2px; background: #e2e8f0; margin-top: -2px; margin-bottom: -4px; min-height: 15px; }
         .line-top { width: 2px; background: #e2e8f0; height: 10px; margin-bottom: -2px; }
         
-        /* ✨ 新的 Inline 排版樣式 */
         .loc-content { flex: 1; display: flex; align-items: center; gap: 10px; padding-bottom: 0; }
         .loc-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; min-width: 60px; margin-bottom: 0; }
         .loc-name { font-size: 1rem; color: var(--text-main); font-weight: 500; line-height: 1.2; }
@@ -857,7 +919,6 @@ export default function TripDetails() {
         .attachment-link { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-body); border: 1px solid var(--border-card); padding: 6px 12px; border-radius: 20px; text-decoration: none; color: var(--text-sub); font-size: 0.85rem; transition: background 0.2s; }
         .attachment-link:hover { border-color: var(--primary); color: var(--primary); }
 
-        /* Accommodation specific */
         .acc-info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
         .acc-address { font-size: 0.9rem; color: var(--text-sub); }
         .acc-cost-status-row { display: flex; align-items: center; gap: 8px; }
@@ -917,49 +978,24 @@ export default function TripDetails() {
           .trip-details-page { padding: 10px; }
           .layout-container { flex-direction: column; gap: 8px; }
 
-          /* 🔥 Mobile Header 調整 */
           .sticky-header {
-             padding: 5px 12px; /* 內距減少 */
+             padding: 5px 12px; 
              margin: 0 -10px 10px -10px;
              min-height: auto;
           }
-          .header-title {
-             font-size: 0.95rem; /* 標題變小 */
-          }
-          .header-meta {
-             font-size: 0.7rem; /* 副標變小 */
-             margin-top: 0;
-             gap: 8px;
-          }
-          .header-left {
-             gap: 8px;
-          }
-          .header-btn {
-             padding: 4px 8px;
-             font-size: 0.75rem; /* 按鈕變小 */
-          }
+          .header-title { font-size: 0.95rem; }
+          .header-meta { font-size: 0.7rem; margin-top: 0; gap: 8px; }
+          .header-left { gap: 8px; }
+          .header-btn { padding: 4px 8px; font-size: 0.75rem; }
           
-          /* 🔥 Mobile Sidebar (Date bar) 調整 */
           .sidebar { 
             width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
-            padding: 6px 12px; /* 內距減少，高度變為原有的 ~70% */
-            display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
-            position: sticky;
-            top: 55px; /* 調整 Sticky 位置配合 Header */
-            z-index: 50;
+            padding: 6px 12px; display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
+            position: sticky; top: 55px; z-index: 50;
           }
-          .day-item { 
-             min-width: 60px; /* 寬度稍微縮減 */
-             text-align: center; margin-right: 6px; margin-bottom: 0; 
-             padding: 4px 8px; /* 內距減少 */
-          }
-          .day-item-text-title {
-             font-size: 0.85rem; /* 字體變小 */
-          }
-          .day-item-text-date {
-             font-size: 0.7rem; /* 字體變小 */
-          }
-
+          .day-item { min-width: 60px; text-align: center; margin-right: 6px; margin-bottom: 0; padding: 4px 8px; }
+          .day-item-text-title { font-size: 0.85rem; }
+          .day-item-text-date { font-size: 0.7rem; }
           .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
           .content-area { padding: 0; }
           .general-card { padding: 16px; }
@@ -988,7 +1024,6 @@ export default function TripDetails() {
           currentItemsCount={currentDayItems.length}
           onClose={() => setShowItemModal(false)} 
           onSave={handleRefresh} 
-          // 🔥 新增：傳遞排序參數給 Modal (需自行確認 Modal 是否有接收此 props)
           initialSortOrder={insertSortOrder}
         />
       )}
@@ -1040,14 +1075,14 @@ export default function TripDetails() {
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                     {currentDayItems.map((item, index) => (
-                        <SortableItem key={item.id} id={item.id}>
+                        <SortableItem key={item.id} id={item.id} isTouchDevice={isTouchDevice}>
                           {(() => {
                              if (item.category === 'transport') return <TransportCard item={item} />
                              if (item.category === 'accommodation') return <AccommodationCard item={item} />
                              if (item.category === 'note') return <NoteCard item={item} />
                              return <GeneralCard item={item} />
                           })()}
-                          {/* 🔥 修改：在每個項目下方加入插入點 */}
+                          {/* 插入點 */}
                           <GapInserter onInsert={() => handleInsertAfter(index)} />
                         </SortableItem>
                     ))}
