@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from 'react'
+import { useEffect, useState, useRef, Fragment } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import TripSettingsModal from './TripSettingsModal'
@@ -49,6 +49,48 @@ export default function TripDetails() {
   );
 
   // --- Helpers ---
+  // 🔥 新增：處理卡片互動的 Custom Hook (解決手機誤觸問題)
+  const useCardInteraction = (item) => {
+    const timerRef = useRef(null);
+
+    // 如果是電腦版 (滑鼠)，維持原本的點擊行為
+    if (!isTouchDevice) {
+        return { 
+            onClick: () => openEditItemModal(item),
+            style: { cursor: 'pointer' }
+        };
+    }
+
+    // 如果是手機版 (觸控)，使用長按邏輯
+    const handleTouchStart = () => {
+        timerRef.current = setTimeout(() => {
+            // 觸發震動回饋 (如果裝置支援)
+            if (window.navigator?.vibrate) window.navigator.vibrate(50);
+            openEditItemModal(item);
+        }, 600); // 設定 600ms 為長按判定時間
+    };
+
+    const clearTimer = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+    };
+
+    return {
+        onTouchStart: handleTouchStart,
+        onTouchEnd: clearTimer,
+        onTouchMove: clearTimer, // 關鍵：如果手指移動(滑動頁面)，就取消編輯
+        onClick: (e) => {}, // 手機版禁用預設 click，避免誤觸
+        style: { 
+            cursor: 'default',
+            userSelect: 'none',           // 禁止文字選取
+            WebkitTouchCallout: 'none',   // 禁止 iOS 長按跳出選單
+            WebkitUserSelect: 'none'
+        }
+    };
+  };
+
   const getWeekday = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('zh-TW', { weekday: 'short' })
@@ -257,6 +299,9 @@ export default function TripDetails() {
     const isCarMode = t.sub_type === 'car_bus';
     const isPublic = t.sub_type === 'public'; 
     const isSimpleView = isPublic && (!item.start_time || !item.end_time);
+    
+    // 取得互動事件 Props
+    const interactionProps = useCardInteraction(item);
 
     const formatLocation = (locName, terminal) => {
         if (!locName) return '未設定地點';
@@ -265,7 +310,7 @@ export default function TripDetails() {
 
     if (isSimpleView) {
       return (
-        <div onClick={() => openEditItemModal(item)} className="card simple-card">
+        <div {...interactionProps} className="card simple-card">
           <div className="simple-card-content">
             <span className="icon-text"><span className="icon">🚌</span><span>{t.duration_text || '移動'}</span></span>
             <span className="separator">|</span>
@@ -276,7 +321,7 @@ export default function TripDetails() {
     }
 
     return (
-      <div onClick={() => openEditItemModal(item)} className="card transport-card">
+      <div {...interactionProps} className="card transport-card">
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
           <span>{isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}</span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
@@ -339,8 +384,12 @@ export default function TripDetails() {
   const AccommodationCard = ({ item }) => {
     const acc = item.accommodation_details || {};
     const isStay = acc.is_generated_stay; 
+    
+    // 取得互動事件 Props
+    const interactionProps = useCardInteraction(item);
+
     return (
-      <div onClick={() => openEditItemModal(item)} className={`card accommodation-card ${isStay ? 'is-stay' : ''}`}>
+      <div {...interactionProps} className={`card accommodation-card ${isStay ? 'is-stay' : ''}`}>
         <div className="card-header header-orange">
           <span>🛏️ {isStay ? '續住：' : '入住：'} {item.name.replace('🏨 住宿: ', '')}</span>
           <span>{acc.agent || '住宿'}</span>
@@ -354,6 +403,8 @@ export default function TripDetails() {
                             e.stopPropagation();
                             setMapSelectorAddress(item.address);
                         }}
+                        // 阻止事件冒泡到卡片的長按/點擊
+                        onTouchStart={(e) => e.stopPropagation()} 
                     >
                         <span className="map-pin-icon">📍</span>
                         <span style={{textDecoration:'underline'}}>{item.address}</span>
@@ -397,13 +448,16 @@ export default function TripDetails() {
     const getCategoryIcon = (cat) => { switch(cat) { case 'food': return '🍴'; case 'accommodation': return '🛏️'; default: return '🎡'; } }
     const todayHours = getTodayOpeningHours(selectedDay.day_date, item.opening_hours);
 
+    // 取得互動事件 Props
+    const interactionProps = useCardInteraction(item);
+
     const displayStart = item.start_time ? formatDisplayTime(item.start_time) : '';
     const displayEnd = item.end_time ? formatDisplayTime(item.end_time) : '';
 
     const showReservation = item.category === 'food' && (item.is_reserved || item.reservation_agent || item.reservation_advance_time);
 
     return (
-      <li onClick={() => openEditItemModal(item)} className="card general-card">
+      <li {...interactionProps} className="card general-card">
         <div className="general-left">
           <div className="category-icon">{getCategoryIcon(item.category)}</div>
           <div className="general-content">
@@ -431,6 +485,7 @@ export default function TripDetails() {
                           e.stopPropagation(); 
                           setMapSelectorAddress(item.address);
                       }}
+                      onTouchStart={(e) => e.stopPropagation()} 
                   >
                       <span className="map-pin-icon" style={{fontSize:'1rem'}}>📍</span> 
                       <span>開啟地圖</span>
@@ -465,9 +520,11 @@ export default function TripDetails() {
   // 🔥 4. NoteCard (維持收合功能與 SVG Icon)
   const NoteCard = ({ item }) => {
       const [isExpanded, setIsExpanded] = useState(false);
+      // 取得互動事件 Props
+      const interactionProps = useCardInteraction(item);
 
       return (
-          <div onClick={() => openEditItemModal(item)} className="card note-card" style={{ cursor: 'pointer' }}>
+          <div {...interactionProps} className="card note-card" style={{ ...interactionProps.style }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div className="note-title" style={{ margin: 0, flex: 1 }}>
                       📝 {item.name}
@@ -479,6 +536,7 @@ export default function TripDetails() {
                           e.stopPropagation(); 
                           setIsExpanded(!isExpanded); 
                       }}
+                      onTouchStart={(e) => e.stopPropagation()}
                       style={{
                           background: 'transparent',
                           border: 'none',
@@ -516,7 +574,7 @@ export default function TripDetails() {
                       
                       {item.attachment_url && (
                           <div className="note-attachment" style={{ marginTop: '12px' }}>
-                              <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="attachment-link">
+                              <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} className="attachment-link">
                                   <span className="attach-icon">{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
                                   <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
                                   <span className="attach-arrow">↗</span>
