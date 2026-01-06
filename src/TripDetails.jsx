@@ -39,8 +39,12 @@ export default function TripDetails() {
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
+  // 🚫 只在「非觸控裝置」啟用拖曳排序，避免手機上阻擋正常捲動
+  const isTouchDevice = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
+    // 桌機 / 滑鼠裝置才啟用 PointerSensor
+    ...(!isTouchDevice ? [useSensor(PointerSensor, { activationConstraint: { distance: 5 } })] : []),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -858,11 +862,13 @@ export default function TripDetails() {
 
         @media (max-width: 768px) {
           .trip-details-page { padding: 10px; }
-          .layout-container { flex-direction: column; gap: 16px; }
+          .layout-container { flex-direction: column; gap: 8px; }
           .sidebar { 
             width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
             padding: 12px; display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
-            top: 80px; 
+            position: sticky;
+            top: 64px; /* 固定在標題列下方，避免被卡片蓋住 */
+            z-index: 50;
           }
           .day-item { min-width: 80px; text-align: center; margin-right: 8px; margin-bottom: 0; padding: 8px 12px; }
           .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
