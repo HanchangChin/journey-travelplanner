@@ -154,11 +154,6 @@ export default function TripDetails() {
     const currentItem = currentDayItems[currentItemIndex];
     const nextItem = currentDayItems[currentItemIndex + 1];
 
-    // 計算新的 sort_order。如果有下一個項目，取兩者中間值；如果沒有，則取當前 + 1 (或是交給 Modal 預設邏輯)
-    // 這裡我們簡單做：傳入目標順序。
-    // 如果你的資料庫 sort_order 是整數，建議在 EditItemModal 存檔時處理重新排序，
-    // 或者這裡我們傳遞一個浮點數 (如果是支援浮點數排序)，或單純傳遞 "在這個ID之後"。
-    // 為了維持功能簡單，我們傳遞一個 "期望的 sort_order"。
     let targetOrder;
     if (nextItem) {
         targetOrder = (currentItem.sort_order + nextItem.sort_order) / 2;
@@ -593,44 +588,44 @@ export default function TripDetails() {
             border-left: 2px dashed #cbd5e1;
         }
         /* 修改後的按鈕樣式：只有 + 號，沒有圓底 */
-.gap-plus-btn {
-    background: transparent; /* 移除藍色背景 */
-    color: var(--text-muted); /* 平常顯示為灰色，比較不搶眼 */
-    border: none;
-    
-    /* 調整字體大小與位置 */
-    font-size: 24px;
-    font-weight: 400;
-    line-height: 1;
-    
-    /* 讓點擊範圍保持適中 */
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    cursor: pointer;
-    z-index: 2;
-    margin-left: -3px; /* 微調讓 + 號對齊虛線中心 */
-    transition: all 0.2s ease;
-}
+        .gap-plus-btn {
+            background: transparent; /* 移除藍色背景 */
+            color: var(--text-muted); /* 平常顯示為灰色，比較不搶眼 */
+            border: none;
+            
+            /* 調整字體大小與位置 */
+            font-size: 24px;
+            font-weight: 400;
+            line-height: 1;
+            
+            /* 讓點擊範圍保持適中 */
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            cursor: pointer;
+            z-index: 2;
+            margin-left: -3px; /* 微調讓 + 號對齊虛線中心 */
+            transition: all 0.2s ease;
+        }
 
-.gap-plus-btn:hover {
-    color: var(--primary); /* 滑鼠移上去變藍色 */
-    transform: scale(1.2); /* 稍微放大 */
-    background: transparent;
-}
+        .gap-plus-btn:hover {
+            color: var(--primary); /* 滑鼠移上去變藍色 */
+            transform: scale(1.2); /* 稍微放大 */
+            background: transparent;
+        }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg-body: #0f172a;      
+                --bg-body: #0f172a;       
                 --bg-sidebar: rgba(30, 41, 59, 0.75); 
                 --bg-content-header: rgba(30, 41, 59, 0.85);
-                --bg-card: #1e293b;      
+                --bg-card: #1e293b;       
                 --border-card: #334155; 
                 --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-                --text-main: #f1f5f9;    
+                --text-main: #f1f5f9;     
                 --text-sub: #cbd5e1;
                 --text-muted: #64748b;
                 --day-item-hover: #1e293b;
@@ -863,14 +858,50 @@ export default function TripDetails() {
         @media (max-width: 768px) {
           .trip-details-page { padding: 10px; }
           .layout-container { flex-direction: column; gap: 8px; }
+
+          /* 🔥 Mobile Header 調整 */
+          .sticky-header {
+             padding: 5px 12px; /* 內距減少 */
+             margin: 0 -10px 10px -10px;
+             min-height: auto;
+          }
+          .header-title {
+             font-size: 0.95rem; /* 標題變小 */
+          }
+          .header-meta {
+             font-size: 0.7rem; /* 副標變小 */
+             margin-top: 0;
+             gap: 8px;
+          }
+          .header-left {
+             gap: 8px;
+          }
+          .header-btn {
+             padding: 4px 8px;
+             font-size: 0.75rem; /* 按鈕變小 */
+          }
+          
+          /* 🔥 Mobile Sidebar (Date bar) 調整 */
           .sidebar { 
             width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
-            padding: 12px; display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
+            padding: 6px 12px; /* 內距減少，高度變為原有的 ~70% */
+            display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
             position: sticky;
-            top: 64px; /* 固定在標題列下方，避免被卡片蓋住 */
+            top: 55px; /* 調整 Sticky 位置配合 Header */
             z-index: 50;
           }
-          .day-item { min-width: 80px; text-align: center; margin-right: 8px; margin-bottom: 0; padding: 8px 12px; }
+          .day-item { 
+             min-width: 60px; /* 寬度稍微縮減 */
+             text-align: center; margin-right: 6px; margin-bottom: 0; 
+             padding: 4px 8px; /* 內距減少 */
+          }
+          .day-item-text-title {
+             font-size: 0.85rem; /* 字體變小 */
+          }
+          .day-item-text-date {
+             font-size: 0.7rem; /* 字體變小 */
+          }
+
           .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
           .content-area { padding: 0; }
           .general-card { padding: 16px; }
@@ -965,7 +996,7 @@ export default function TripDetails() {
                   </ul>
                 </SortableContext>
               </DndContext>
-               
+                
               <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
                 <span>➕</span> 新增行程 (最底部)
               </button>
