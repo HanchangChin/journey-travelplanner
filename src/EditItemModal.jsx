@@ -207,7 +207,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         const arrivalPayload = {
             trip_id: tripId, trip_day_id: targetDay.id,
             name: formData.name, category: 'transport',
-            location_name: details.arrival_location || formData.location_name,
+            location_name: formData.location_name,
             address: formData.address, website: formData.website,
             cost: formData.cost ? parseFloat(formData.cost) : 0, notes: formData.notes,
             start_time: formData.end_time || null, end_time: formData.end_time || null, 
