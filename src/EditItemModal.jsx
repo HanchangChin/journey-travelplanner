@@ -596,7 +596,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                             <div style={{display:'flex', gap:'5px'}}>
                                 <input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} style={{flex:1}} />
                                 <select value={details.arrival_day_offset} onChange={e => setDetails({...details, arrival_day_offset: parseInt(e.target.value)})} style={{width:'70px'}}>
-                                    <option value={0}>當日</option><option value={1}>+1</option><option value={2}>+2</option>
+                                    <option value={-1}>-1</option><option value={0}>當日</option><option value={1}>+1</option><option value={2}>+2</option>
                                 </select>
                             </div>
                             {(details.sub_type === 'car_bus' || details.sub_type === 'public') && details.google_duration > 0 && 
