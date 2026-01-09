@@ -608,7 +608,7 @@ export default function TripDetails() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
             {/* 第一列：Morning + Wake up + Check out */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>🌅 Morning</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>Morning</span>
               
               {/* Wake up 和 Check out 時間放在 Morning 旁邊 */}
               {!isEditing && hasWakeUp && (
