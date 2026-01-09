@@ -607,17 +607,19 @@ export default function TripDetails() {
           />
           <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>🌅 Morning</span>
           
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
-            {!isEditing && hasWakeUp && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
-                🌅 {formatTime(day.wake_up_time)}
-              </span>
-            )}
-            {!isEditing && hasCheckout && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
-                🚪 {formatTime(day.checkout_time)}
-              </span>
-            )}
+          {/* Wake up 和 Check out 時間放在 Morning 旁邊 */}
+          {!isEditing && hasWakeUp && (
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)', marginLeft: '4px' }}>
+              🌅 {formatTime(day.wake_up_time)}
+            </span>
+          )}
+          {!isEditing && hasCheckout && (
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+              🚪 {formatTime(day.checkout_time)}
+            </span>
+          )}
+          
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             <button
               onClick={() => {
                 if (isEditing) {
@@ -747,7 +749,8 @@ export default function TripDetails() {
 
         {!isEditing && (hasBreakfastStart || hasBreakfastEnd) && (
           <div style={{ marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-sub)' }}>
-            {hasBreakfastStart && <span>🍴 {formatTime(day.breakfast_start_time)}</span>}
+            <span style={{ fontWeight: '500' }}>Breakfast</span>
+            {hasBreakfastStart && <span> {formatTime(day.breakfast_start_time)}</span>}
             {hasBreakfastStart && hasBreakfastEnd && <span> ~ </span>}
             {hasBreakfastEnd && <span>{formatTime(day.breakfast_end_time)}</span>}
           </div>
