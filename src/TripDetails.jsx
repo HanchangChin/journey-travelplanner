@@ -589,7 +589,7 @@ export default function TripDetails() {
         border: '1px solid var(--border-card)',
         borderRadius: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
             checked={showCard}
@@ -605,41 +605,56 @@ export default function TripDetails() {
             }}
             style={{ width: '16px', height: '16px', cursor: 'pointer' }}
           />
-          <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>🌅 Morning</span>
-          
-          {/* Wake up 和 Check out 時間放在 Morning 旁邊 */}
-          {!isEditing && hasWakeUp && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)', marginLeft: '4px' }}>
-              🌅 {formatTime(day.wake_up_time)}
-            </span>
-          )}
-          {!isEditing && hasCheckout && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
-              🚪 {formatTime(day.checkout_time)}
-            </span>
-          )}
-          
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            <button
-              onClick={() => {
-                if (isEditing) {
-                  handleSave()
-                } else {
-                  setIsEditing(true)
-                }
-              }}
-              style={{
-                padding: '4px 8px',
-                fontSize: '0.7rem',
-                background: 'var(--primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              {isEditing ? '完成' : '編輯'}
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+            {/* 第一列：Morning + Wake up + Check out */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>🌅 Morning</span>
+              
+              {/* Wake up 和 Check out 時間放在 Morning 旁邊 */}
+              {!isEditing && hasWakeUp && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)', marginLeft: '4px' }}>
+                  🌅 {formatTime(day.wake_up_time)}
+                </span>
+              )}
+              {!isEditing && hasCheckout && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+                  🚪 {formatTime(day.checkout_time)}
+                </span>
+              )}
+              
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <button
+                  onClick={() => {
+                    if (isEditing) {
+                      handleSave()
+                    } else {
+                      setIsEditing(true)
+                    }
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.7rem',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isEditing ? '完成' : '編輯'}
+                </button>
+              </div>
+            </div>
+            
+            {/* 第二列：Breakfast 與 Morning 對齊 */}
+            {!isEditing && (hasBreakfastStart || hasBreakfastEnd) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+                <span style={{ fontWeight: '500' }}>Breakfast</span>
+                {hasBreakfastStart && <span>{formatTime(day.breakfast_start_time)}</span>}
+                {hasBreakfastStart && hasBreakfastEnd && <span> ~ </span>}
+                {hasBreakfastEnd && <span>{formatTime(day.breakfast_end_time)}</span>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -747,14 +762,6 @@ export default function TripDetails() {
           </div>
         )}
 
-        {!isEditing && (hasBreakfastStart || hasBreakfastEnd) && (
-          <div style={{ marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-sub)' }}>
-            <span style={{ fontWeight: '500' }}>Breakfast</span>
-            {hasBreakfastStart && <span> {formatTime(day.breakfast_start_time)}</span>}
-            {hasBreakfastStart && hasBreakfastEnd && <span> ~ </span>}
-            {hasBreakfastEnd && <span>{formatTime(day.breakfast_end_time)}</span>}
-          </div>
-        )}
       </div>
     )
   }
