@@ -121,7 +121,37 @@ export default function TripDetails() {
       setItems(cachedData.items)
         
       if (!selectedDay && cachedData.days?.length > 0) {
-        setSelectedDay(cachedData.days[0])
+        // ✨ 自動選擇日期：依今天的日期選擇，如果今天不在旅行日期內則選第一天
+        const today = new Date()
+        const todayString = today.toISOString().split('T')[0] // yyyy-MM-dd
+        
+        // 檢查今天的日期是否在旅行日期範圍內
+        const startDate = new Date(cachedData.trip.start_date)
+        const endDate = new Date(cachedData.trip.end_date)
+        
+        let targetDay = null
+        
+        if (today >= startDate && today <= endDate) {
+          // 今天的日期在旅行日期範圍內，尋找對應的日期
+          targetDay = cachedData.days.find(day => day.day_date === todayString)
+          if (targetDay) {
+            console.log(`✅ 找到今天的日期: Day ${targetDay.day_number} (${todayString})`)
+          } else {
+            console.log('⚠️ 今天日期在範圍內但找不到對應的日期，使用第一天')
+          }
+        } else {
+          console.log(`⚠️ 今天日期不在旅行日期範圍內 (${cachedData.trip.start_date} ~ ${cachedData.trip.end_date})，使用第一天`)
+        }
+        
+        // 如果找不到今天的日期或今天不在範圍內，使用第一天
+        if (!targetDay) {
+          targetDay = cachedData.days[0]
+        }
+        
+        if (targetDay) {
+          setSelectedDay(targetDay)
+          console.log(`✅ 自動選中日期: Day ${targetDay.day_number} (${targetDay.day_date})`)
+        }
       } else if (selectedDay) {
         const updatedDay = cachedData.days.find(d => d.id === selectedDay.id)
         if (updatedDay) setSelectedDay(updatedDay)
@@ -137,6 +167,51 @@ export default function TripDetails() {
   const handleTitleChange = (e) => {
     const newTitle = e.target.value; setSelectedDay({ ...selectedDay, title: newTitle });
     setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
+  }
+
+  // ✨ 新增：更新 Morning 設定
+  const handleMorningUpdate = async (wakeUpTime, checkoutTime, breakfastStartTime, breakfastEndTime, showMorningSettings) => {
+    if (!selectedDay) return
+    
+    try {
+      // 先更新時間欄位
+      const timeUpdate = {
+        wake_up_time: wakeUpTime || null,
+        checkout_time: checkoutTime || null,
+        breakfast_start_time: breakfastStartTime || null,
+        breakfast_end_time: breakfastEndTime || null
+      }
+      
+      await supabase
+        .from('trip_days')
+        .update(timeUpdate)
+        .eq('id', selectedDay.id)
+      
+      // 嘗試更新顯示開關（如果資料庫有這個欄位）
+      try {
+        await supabase
+          .from('trip_days')
+          .update({ show_morning_settings: showMorningSettings })
+          .eq('id', selectedDay.id)
+      } catch (err) {
+        console.warn('⚠️ 顯示開關欄位不存在，僅更新時間欄位:', err.message)
+      }
+      
+      // 更新本地狀態
+      const updatedDay = {
+        ...selectedDay,
+        ...timeUpdate,
+        show_morning_settings: showMorningSettings
+      }
+      setSelectedDay(updatedDay)
+      setDays(days.map(d => d.id === selectedDay.id ? updatedDay : d))
+      
+      // 刷新資料
+      queryClient.invalidateQueries(['tripDetails', tripId])
+    } catch (error) {
+      console.error('❌ 更新 Morning 設定失敗:', error)
+      alert('更新失敗: ' + error.message)
+    }
   }
 
   // 🔥 修改：開啟新增 Modal 時，清空插入位置（代表新增到最後）
@@ -459,6 +534,225 @@ export default function TripDetails() {
           )}
         </div>
       </li>
+    )
+  }
+
+  // ✨ 5. MorningCard
+  const MorningCard = ({ day }) => {
+    const [isEditing, setIsEditing] = useState(false)
+    const [showCard, setShowCard] = useState(day.show_morning_settings !== false)
+    const [wakeUpTime, setWakeUpTime] = useState(day.wake_up_time || '')
+    const [checkoutTime, setCheckoutTime] = useState(day.checkout_time || '')
+    const [breakfastStartTime, setBreakfastStartTime] = useState(day.breakfast_start_time || '')
+    const [breakfastEndTime, setBreakfastEndTime] = useState(day.breakfast_end_time || '')
+    const [hasWakeUp, setHasWakeUp] = useState(!!day.wake_up_time)
+    const [hasCheckout, setHasCheckout] = useState(!!day.checkout_time)
+    const [hasBreakfastStart, setHasBreakfastStart] = useState(!!day.breakfast_start_time)
+    const [hasBreakfastEnd, setHasBreakfastEnd] = useState(!!day.breakfast_end_time)
+
+    // 當 day 改變時，同步更新狀態
+    useEffect(() => {
+      setShowCard(day.show_morning_settings !== false)
+      setWakeUpTime(day.wake_up_time || '')
+      setCheckoutTime(day.checkout_time || '')
+      setBreakfastStartTime(day.breakfast_start_time || '')
+      setBreakfastEndTime(day.breakfast_end_time || '')
+      setHasWakeUp(!!day.wake_up_time)
+      setHasCheckout(!!day.checkout_time)
+      setHasBreakfastStart(!!day.breakfast_start_time)
+      setHasBreakfastEnd(!!day.breakfast_end_time)
+    }, [day.id])
+
+    const handleSave = () => {
+      const wakeUp = hasWakeUp ? wakeUpTime : null
+      const checkout = hasCheckout ? checkoutTime : null
+      const breakfastStart = hasBreakfastStart ? breakfastStartTime : null
+      const breakfastEnd = hasBreakfastEnd ? breakfastEndTime : null
+      
+      handleMorningUpdate(wakeUp, checkout, breakfastStart, breakfastEnd, showCard)
+      setIsEditing(false)
+    }
+
+    const formatTime = (timeStr) => {
+      if (!timeStr) return '--:--'
+      return timeStr.substring(0, 5)
+    }
+
+    if (!showCard && !isEditing) return null
+
+    return (
+      <div className="card morning-card" style={{ 
+        marginBottom: '16px', 
+        padding: '8px 12px',
+        fontSize: '0.75rem',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--border-card)',
+        borderRadius: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <input
+            type="checkbox"
+            checked={showCard}
+            onChange={(e) => {
+              setShowCard(e.target.checked)
+              handleMorningUpdate(
+                hasWakeUp ? wakeUpTime : null,
+                hasCheckout ? checkoutTime : null,
+                hasBreakfastStart ? breakfastStartTime : null,
+                hasBreakfastEnd ? breakfastEndTime : null,
+                e.target.checked
+              )
+            }}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>🌅 Morning</span>
+          
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
+            {!isEditing && hasWakeUp && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+                🌅 {formatTime(day.wake_up_time)}
+              </span>
+            )}
+            {!isEditing && hasCheckout && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+                🚪 {formatTime(day.checkout_time)}
+              </span>
+            )}
+            <button
+              onClick={() => {
+                if (isEditing) {
+                  handleSave()
+                } else {
+                  setIsEditing(true)
+                }
+              }}
+              style={{
+                padding: '4px 8px',
+                fontSize: '0.7rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              {isEditing ? '完成' : '編輯'}
+            </button>
+          </div>
+        </div>
+
+        {isEditing && (
+          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                checked={hasWakeUp}
+                onChange={(e) => setHasWakeUp(e.target.checked)}
+                style={{ width: '14px', height: '14px' }}
+              />
+              <label style={{ fontSize: '0.7rem', marginRight: '8px' }}>起床時間</label>
+              {hasWakeUp && (
+                <input
+                  type="time"
+                  value={wakeUpTime}
+                  onChange={(e) => setWakeUpTime(e.target.value)}
+                  style={{ 
+                    padding: '2px 6px', 
+                    fontSize: '0.7rem', 
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '4px',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                checked={hasCheckout}
+                onChange={(e) => setHasCheckout(e.target.checked)}
+                style={{ width: '14px', height: '14px' }}
+              />
+              <label style={{ fontSize: '0.7rem', marginRight: '8px' }}>退房時間</label>
+              {hasCheckout && (
+                <input
+                  type="time"
+                  value={checkoutTime}
+                  onChange={(e) => setCheckoutTime(e.target.value)}
+                  style={{ 
+                    padding: '2px 6px', 
+                    fontSize: '0.7rem', 
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '4px',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                checked={hasBreakfastStart}
+                onChange={(e) => setHasBreakfastStart(e.target.checked)}
+                style={{ width: '14px', height: '14px' }}
+              />
+              <label style={{ fontSize: '0.7rem', marginRight: '8px' }}>早餐開始</label>
+              {hasBreakfastStart && (
+                <input
+                  type="time"
+                  value={breakfastStartTime}
+                  onChange={(e) => setBreakfastStartTime(e.target.value)}
+                  style={{ 
+                    padding: '2px 6px', 
+                    fontSize: '0.7rem', 
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '4px',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                checked={hasBreakfastEnd}
+                onChange={(e) => setHasBreakfastEnd(e.target.checked)}
+                style={{ width: '14px', height: '14px' }}
+              />
+              <label style={{ fontSize: '0.7rem', marginRight: '8px' }}>早餐結束</label>
+              {hasBreakfastEnd && (
+                <input
+                  type="time"
+                  value={breakfastEndTime}
+                  onChange={(e) => setBreakfastEndTime(e.target.value)}
+                  style={{ 
+                    padding: '2px 6px', 
+                    fontSize: '0.7rem', 
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '4px',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isEditing && (hasBreakfastStart || hasBreakfastEnd) && (
+          <div style={{ marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-sub)' }}>
+            {hasBreakfastStart && <span>🍴 {formatTime(day.breakfast_start_time)}</span>}
+            {hasBreakfastStart && hasBreakfastEnd && <span> ~ </span>}
+            {hasBreakfastEnd && <span>{formatTime(day.breakfast_end_time)}</span>}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -978,6 +1272,11 @@ export default function TripDetails() {
         <div className="content-area">
           {selectedDay && (
             <>
+              {/* ✨ Morning 卡片 */}
+              {selectedDay.show_morning_settings !== false && (
+                <MorningCard day={selectedDay} />
+              )}
+              
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
