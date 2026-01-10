@@ -30,6 +30,8 @@ export default function TripDetails() {
   const [showItemModal, setShowItemModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [isEditingTripTitle, setIsEditingTripTitle] = useState(false)
+  const [tripTitle, setTripTitle] = useState('')
   
   // 🔥 新增：用來記錄要「插入」的排序位置
   const [insertSortOrder, setInsertSortOrder] = useState(null)
@@ -117,6 +119,7 @@ export default function TripDetails() {
   useEffect(() => {
     if (cachedData) {
       setTrip(cachedData.trip)
+      setTripTitle(cachedData.trip.title) // 初始化行程標題
       setDays(cachedData.days)
       setItems(cachedData.items)
         
@@ -167,6 +170,25 @@ export default function TripDetails() {
   const handleTitleChange = (e) => {
     const newTitle = e.target.value; setSelectedDay({ ...selectedDay, title: newTitle });
     setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
+  }
+
+  // ✨ 新增：編輯主要行程標題
+  const handleTripTitleUpdate = async () => {
+    if (!trip || !tripTitle.trim()) return
+    
+    try {
+      await supabase
+        .from('trips')
+        .update({ title: tripTitle.trim() })
+        .eq('id', trip.id)
+      
+      setTrip({ ...trip, title: tripTitle.trim() })
+      setIsEditingTripTitle(false)
+      queryClient.invalidateQueries(['tripDetails', tripId])
+    } catch (error) {
+      console.error('更新行程標題失敗:', error)
+      alert('更新失敗: ' + error.message)
+    }
   }
 
   // ✨ 新增：更新 Morning 設定
@@ -1251,7 +1273,82 @@ export default function TripDetails() {
         <div className="header-left">
             <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-sub)', fontSize: '1.1rem', marginRight: '5px' }}>←</Link>
             <div className="header-title-group">
-                <h1 className="header-title">{trip.title}</h1>
+                {isEditingTripTitle ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={tripTitle}
+                      onChange={(e) => setTripTitle(e.target.value)}
+                      onBlur={handleTripTitleUpdate}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleTripTitleUpdate()
+                        } else if (e.key === 'Escape') {
+                          setTripTitle(trip.title)
+                          setIsEditingTripTitle(false)
+                        }
+                      }}
+                      autoFocus
+                      style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        border: '1px solid var(--primary)',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        background: 'var(--input-bg)',
+                        color: 'var(--text-main)',
+                        width: '100%',
+                        maxWidth: '400px'
+                      }}
+                    />
+                    <button
+                      onClick={handleTripTitleUpdate}
+                      style={{
+                        padding: '4px 12px',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      儲存
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTripTitle(trip.title)
+                        setIsEditingTripTitle(false)
+                      }}
+                      style={{
+                        padding: '4px 12px',
+                        background: 'transparent',
+                        color: 'var(--text-sub)',
+                        border: '1px solid var(--border-card)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <h1 
+                    className="header-title"
+                    onClick={() => setIsEditingTripTitle(true)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    title="點擊編輯標題"
+                  >
+                    {trip.title}
+                    <span style={{ 
+                      marginLeft: '8px', 
+                      fontSize: '0.8rem', 
+                      opacity: 0.6,
+                      fontWeight: 'normal'
+                    }}>✎</span>
+                  </h1>
+                )}
                 <div className="header-meta">
                     <span>{trip.start_date} ~ {trip.end_date}</span>
                     <span>${trip.budget_goal}</span>
@@ -1273,7 +1370,9 @@ export default function TripDetails() {
               onClick={() => setSelectedDay(day)} 
               className={`day-item ${selectedDay?.id === day.id ? 'day-item-active' : ''}`}
             >
-              <div className="day-item-text-title">Day {day.day_number} {day.title ? <span style={{fontSize:'0.9em', opacity: 0.8}}>{day.title}</span> : ''}</div>
+              <div className="day-item-text-title">
+                D-{day.day_number} {day.title ? <span style={{fontSize:'0.9em', opacity: 0.8}}>{day.title}</span> : ''}
+              </div>
               <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
             </div>
           ))}
