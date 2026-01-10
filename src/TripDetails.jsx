@@ -1254,26 +1254,93 @@ export default function TripDetails() {
           
           /* 🔥 Mobile Sidebar (Date bar) 調整 */
           .sidebar { 
-            width: 100%; border-right: none; border-bottom: 1px solid var(--border-card); 
-            padding: 6px 12px; /* 內距減少，高度變為原有的 ~70% */
-            display: flex; overflow-x: auto; white-space: nowrap; background: var(--bg-sidebar);
+            width: 100%; 
+            border-right: none; 
+            border-bottom: 1px solid var(--border-card); 
+            padding: 8px 12px; /* 增加上下內距 */
+            display: flex; 
+            overflow-x: auto; 
+            overflow-y: hidden;
+            white-space: nowrap; 
+            background: var(--bg-sidebar);
             position: sticky;
             top: 55px; /* 調整 Sticky 位置配合 Header */
             z-index: 50;
+            gap: 8px; /* 使用 gap 統一間距 */
+            scrollbar-width: thin; /* Firefox 細滾動條 */
+            scrollbar-color: var(--border-card) transparent; /* Firefox 滾動條顏色 */
+            -webkit-overflow-scrolling: touch; /* iOS 平滑滾動 */
           }
+          
+          /* WebKit 瀏覽器滾動條樣式 */
+          .sidebar::-webkit-scrollbar {
+            height: 3px;
+          }
+          .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-card);
+            border-radius: 3px;
+          }
+          
           .day-item { 
-             min-width: 60px; /* 寬度稍微縮減 */
-             text-align: center; margin-right: 6px; margin-bottom: 0; 
-             padding: 4px 8px; /* 內距減少 */
+             min-width: 90px; /* 增加寬度，讓內容更清晰 */
+             max-width: 110px;
+             flex-shrink: 0; /* 防止壓縮 */
+             text-align: center; 
+             margin: 0; /* 移除 margin，改用 gap */
+             padding: 10px 12px; /* 增加內距，提升點擊區域 */
+             border-radius: 10px; /* 更圓潤的邊角 */
+             transition: all 0.2s ease;
           }
+          
           .day-item-text-title {
-             font-size: 0.85rem; /* 字體變小 */
+             font-size: 0.9rem; /* 稍微增大字體 */
+             font-weight: 600;
+             line-height: 1.3;
+             margin-bottom: 4px;
           }
+          
           .day-item-text-date {
-             font-size: 0.7rem; /* 字體變小 */
+             font-size: 0.75rem; /* 稍微增大字體 */
+             opacity: 0.85;
+             line-height: 1.2;
           }
 
-          .day-item-active { border-left: none; border-bottom: 3px solid var(--primary); box-shadow: none; border-top: none; border-right: none; }
+          .day-item-active { 
+            background-color: var(--primary) !important; 
+            color: white !important; 
+            border: none !important;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important; /* 添加陰影效果 */
+            transform: scale(1.05); /* 稍微放大選中項 */
+          }
+          
+          .day-item-active .day-item-text-title { 
+            color: white !important; 
+            font-weight: 700;
+          }
+          
+          .day-item-active .day-item-text-date { 
+            color: rgba(255, 255, 255, 0.9) !important; 
+          }
+          
+          /* 第一個和最後一個項目添加左右邊距 */
+          .sidebar .day-item:first-child {
+            margin-left: 0;
+          }
+          
+          .sidebar .day-item:last-child {
+            margin-right: 0;
+            padding-right: 12px; /* 最後一個項目右側增加一點空間 */
+          }
+          
+          /* 編輯狀態時的樣式優化 */
+          .sidebar .day-item input {
+            font-size: 0.85rem !important;
+            padding: 4px 6px !important;
+          }
+          
           .content-area { padding: 0; }
           .general-card { padding: 16px; }
           .general-name { font-size: 1rem; }
