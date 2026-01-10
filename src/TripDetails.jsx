@@ -32,6 +32,8 @@ export default function TripDetails() {
   const [editingItem, setEditingItem] = useState(null)
   const [isEditingTripTitle, setIsEditingTripTitle] = useState(false)
   const [tripTitle, setTripTitle] = useState('')
+  const [editingDayId, setEditingDayId] = useState(null)
+  const [editingDayTitle, setEditingDayTitle] = useState('')
   
   // 🔥 新增：用來記錄要「插入」的排序位置
   const [insertSortOrder, setInsertSortOrder] = useState(null)
@@ -162,14 +164,23 @@ export default function TripDetails() {
     }
   }, [cachedData])
 
-  const handleTitleUpdate = async (e) => { 
-      await supabase.from('trip_days').update({ title: e.target.value }).eq('id', selectedDay.id) 
-      queryClient.invalidateQueries(['tripDetails', tripId])
+  // ✨ 新增：編輯每日行程標題
+  const handleDayTitleUpdate = async (dayId) => {
+    if (!editingDayTitle.trim() && editingDayTitle !== '') {
+      // 如果清空標題，設為 null
+      await supabase.from('trip_days').update({ title: null }).eq('id', dayId)
+    } else {
+      await supabase.from('trip_days').update({ title: editingDayTitle.trim() || null }).eq('id', dayId)
+    }
+    queryClient.invalidateQueries(['tripDetails', tripId])
+    setEditingDayId(null)
+    setEditingDayTitle('')
   }
-   
-  const handleTitleChange = (e) => {
-    const newTitle = e.target.value; setSelectedDay({ ...selectedDay, title: newTitle });
-    setDays(days.map(d => d.id === selectedDay.id ? { ...d, title: newTitle } : d))
+
+  const handleDayTitleEdit = (day, e) => {
+    e.stopPropagation() // 阻止觸發選擇日期的行為
+    setEditingDayId(day.id)
+    setEditingDayTitle(day.title || '')
   }
 
   // ✨ 新增：編輯主要行程標題
@@ -1367,13 +1378,102 @@ export default function TripDetails() {
           {days.map(day => (
             <div 
               key={day.id} 
-              onClick={() => setSelectedDay(day)} 
+              onClick={() => {
+                if (editingDayId !== day.id) {
+                  setSelectedDay(day)
+                }
+              }}
               className={`day-item ${selectedDay?.id === day.id ? 'day-item-active' : ''}`}
             >
-              <div className="day-item-text-title">
-                D-{day.day_number} {day.title ? <span style={{fontSize:'0.9em', opacity: 0.8}}>{day.title}</span> : ''}
-              </div>
-              <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
+              {editingDayId === day.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '1rem', fontWeight: '600' }}>D-{day.day_number}</span>
+                    <input
+                      type="text"
+                      value={editingDayTitle}
+                      onChange={(e) => setEditingDayTitle(e.target.value)}
+                      onBlur={() => handleDayTitleUpdate(day.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleDayTitleUpdate(day.id)
+                        } else if (e.key === 'Escape') {
+                          setEditingDayId(null)
+                          setEditingDayTitle('')
+                        }
+                      }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        flex: 1,
+                        fontSize: '0.9rem',
+                        border: '1px solid var(--primary)',
+                        borderRadius: '4px',
+                        padding: '2px 6px',
+                        background: 'var(--input-bg)',
+                        color: 'var(--text-main)'
+                      }}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDayTitleUpdate(day.id)
+                      }}
+                      style={{
+                        padding: '2px 6px',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingDayId(null)
+                        setEditingDayTitle('')
+                      }}
+                      style={{
+                        padding: '2px 6px',
+                        background: 'transparent',
+                        color: 'var(--text-sub)',
+                        border: '1px solid var(--border-card)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
+                </div>
+              ) : (
+                <>
+                  <div className="day-item-text-title">
+                    D-{day.day_number} {day.title ? <span style={{fontSize:'0.9em', opacity: 0.8}}>{day.title}</span> : ''}
+                    <span 
+                      onClick={(e) => handleDayTitleEdit(day, e)}
+                      style={{ 
+                        marginLeft: '6px', 
+                        fontSize: '0.7rem', 
+                        opacity: 0.6,
+                        cursor: 'pointer',
+                        display: 'inline-block'
+                      }}
+                      title="點擊編輯"
+                    >
+                      ✎
+                    </span>
+                  </div>
+                  <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
+                </>
+              )}
             </div>
           ))}
         </div>
