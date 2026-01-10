@@ -10,7 +10,7 @@ import { useJsApiLoader } from '@react-google-maps/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 // ✨ DND Kit Imports
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
 
@@ -43,12 +43,19 @@ export default function TripDetails() {
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
-  // 🚫 只在「非觸控裝置」啟用拖曳排序，避免手機上阻擋正常捲動
+  // ✨ 偵測是否為觸控裝置
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
   const sensors = useSensors(
-    // 桌機 / 滑鼠裝置才啟用 PointerSensor
+    // 桌機 / 滑鼠裝置：使用 PointerSensor
     ...(!isTouchDevice ? [useSensor(PointerSensor, { activationConstraint: { distance: 5 } })] : []),
+    // 觸控裝置：使用 TouchSensor，設置較長的激活距離和延遲，只有明確拖動左側把手才觸發
+    ...(isTouchDevice ? [useSensor(TouchSensor, { 
+      activationConstraint: { 
+        delay: 200, // 延遲 200ms 才啟動拖動，避免誤觸
+        tolerance: 10 // 需要移動 10px 才啟動
+      } 
+    })] : []),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -76,6 +83,12 @@ export default function TripDetails() {
     if (trip?.is_24hr !== false) return timeStr.substring(0, 5)
     const [h, m] = timeStr.split(':').map(Number); const ampm = h >= 12 ? '下午' : '上午'; const h12 = h % 12 || 12 
     return `${ampm} ${h12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  }
+
+  // ✨ 新增：格式化費用（添加千分位）
+  const formatCost = (cost) => {
+    if (!cost || cost === 0) return '0'
+    return Number(cost).toLocaleString('en-US')
   }
 
   const calculateDuration = (start, end) => {
@@ -386,7 +399,15 @@ export default function TripDetails() {
     return (
       <div onClick={() => openEditItemModal(item)} className="card transport-card">
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
-          <span>{isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}</span>
+          <span>
+            {isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}
+            {/* ✨ 報到時間 (僅飛機/火車，顯示在標題旁邊) */}
+            {!isArrivalCard && !isCarMode && !isPublic && item.checkin_time && (
+              <span style={{marginLeft: '12px', fontSize: '0.9rem', fontWeight: 'bold'}}>
+                報到: {formatDisplayTime(item.checkin_time)}
+              </span>
+            )}
+          </span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
         </div>
 
@@ -437,7 +458,7 @@ export default function TripDetails() {
             </div>
           )}
 
-          {item.cost > 0 && <div className="transport-cost-tag">${item.cost}</div>}
+          {item.cost > 0 && <div className="transport-cost-tag">${formatCost(item.cost)}</div>}
         </div>
       </div>
     )
@@ -469,7 +490,7 @@ export default function TripDetails() {
                 </div>
                 
                 <div className="acc-cost-status-row">
-                    {item.cost > 0 && <div className="acc-cost">{acc.currency} ${item.cost}</div>}
+                    {item.cost > 0 && <div className="acc-cost">{acc.currency} ${formatCost(item.cost)}</div>}
                     <div className="acc-status">
                         {acc.is_paid ? 
                             <span className="tag tag-green">已付款</span> : 
@@ -508,7 +529,7 @@ export default function TripDetails() {
     const displayStart = item.start_time ? formatDisplayTime(item.start_time) : '';
     const displayEnd = item.end_time ? formatDisplayTime(item.end_time) : '';
 
-    const showReservation = item.category === 'food' && (item.is_reserved || item.reservation_agent || item.reservation_advance_time);
+    const showReservation = (item.category === 'food' || item.category === 'activity') && (item.is_reserved || item.reservation_agent || item.reservation_advance_time || item.checkin_time);
 
     return (
       <li onClick={() => openEditItemModal(item)} className="card general-card">
@@ -526,6 +547,10 @@ export default function TripDetails() {
                     }
                     {item.reservation_agent && <span>🎫 {item.reservation_agent}</span>}
                     {item.reservation_advance_time && <span>⏰ {item.reservation_advance_time}</span>}
+                    {/* ✨ 新增：報到時間 (僅 Activity) */}
+                    {item.category === 'activity' && item.checkin_time && (
+                        <span>🕐 報到: {formatDisplayTime(item.checkin_time)}</span>
+                    )}
                 </div>
             )}
 
@@ -562,7 +587,7 @@ export default function TripDetails() {
           
           {item.cost > 0 && (
               <div className="general-cost">
-                  {item.currency || 'TWD'} <span style={{fontWeight:'bold'}}>${item.cost}</span>
+                  {item.currency || 'TWD'} <span style={{fontWeight:'bold'}}>${formatCost(item.cost)}</span>
               </div>
           )}
         </div>
@@ -983,6 +1008,8 @@ export default function TripDetails() {
             max-width: 1280px; 
             margin: 0 auto;
             width: 100%;
+            touchAction: pan-y; /* ✨ 允許垂直滾動 */
+            overflow-x: hidden; /* 防止橫向滾動 */
         }
 
         .sticky-header {
@@ -1052,7 +1079,13 @@ export default function TripDetails() {
         .day-item-text-title { font-weight: 600; font-size: 1rem; }
         .day-item-text-date { font-size: 0.85rem; margin-top: 4px; opacity: 0.8; }
 
-        .content-area { flex: 1; min-width: 0; }
+        .content-area { 
+          flex: 1; 
+          min-width: 0; 
+          touchAction: pan-y; /* ✨ 允許垂直滾動 */
+          overflow-y: auto; /* 確保可以滾動 */
+          WebkitOverflowScrolling: touch; /* iOS 平滑滾動 */
+        }
         
         .card {
             background-color: var(--bg-card) !important; 
@@ -1067,6 +1100,7 @@ export default function TripDetails() {
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
+            touchAction: pan-y; /* ✨ 允許垂直滾動 */
         }
         .card:hover { transform: translateY(-2px); border-color: var(--primary); }
 
@@ -1362,7 +1396,7 @@ export default function TripDetails() {
                 )}
                 <div className="header-meta">
                     <span>{trip.start_date} ~ {trip.end_date}</span>
-                    <span>${trip.budget_goal}</span>
+                    <span>${trip.budget_goal ? formatCost(trip.budget_goal) : '0'}</span>
                     <span>{(trip.trip_members?.length || 0) + 1} 人</span>
                 </div>
             </div>
@@ -1488,7 +1522,7 @@ export default function TripDetails() {
               
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, touchAction: 'pan-y' }}>
                     {currentDayItems.map((item, index) => (
                         <SortableItem key={item.id} id={item.id}>
                           {(() => {

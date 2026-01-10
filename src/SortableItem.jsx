@@ -17,20 +17,30 @@ export function SortableItem(props) {
     transition,
     opacity: isDragging ? 0.5 : 1, // 拖拉時變半透明
     position: 'relative',
-    touchAction: 'none' // 防止手機滾動干擾拖拉
+    touchAction: 'pan-y' // ✨ 允許垂直滾動，只在把手區域才觸發拖拽
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      {/* 這裡我們把 listeners (拖拉事件) 綁在一個 "把手" 上，或者綁在整個 div 上。
-         為了方便，我們先綁在整個 div 上，但為了避免影響點擊，
-         通常建議在卡片左側做一個 ::: 符號當作把手。
-      */}
       <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-          <div {...listeners} style={{cursor: 'grab', fontSize:'20px', color:'#ccc', padding:'5px'}}>
+          {/* ✨ 把手區域：綁定 listeners，設置 touchAction: 'none' 以允許拖拽 */}
+          <div 
+            {...listeners} 
+            style={{
+              cursor: 'grab', 
+              fontSize:'20px', 
+              color:'#ccc', 
+              padding:'5px 8px',
+              touchAction: 'none', // 把手區域不允許滾動，只允許拖拽
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              flexShrink: 0
+            }}
+          >
              ⋮⋮ 
           </div>
-          <div style={{flex:1}}>
+          {/* ✨ 內容區域：不綁定 listeners，允許正常滾動和點擊 */}
+          <div style={{flex:1, touchAction: 'pan-y'}}>
              {props.children}
           </div>
       </div>
