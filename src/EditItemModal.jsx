@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { Autocomplete } from '@react-google-maps/api'
 
-// ✨ 修改 1: 在參數中加入 initialSortOrder
-export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, onClose, onSave, tripMembers = [], is24hr = true, isLoaded, currentItemsCount = 0, initialSortOrder = null }) {
+// ✨ 修改 1: 在參數中加入 initialSortOrder 和 onMove
+export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, onClose, onSave, tripMembers = [], is24hr = true, isLoaded, currentItemsCount = 0, initialSortOrder = null, onMove }) {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [autocompleteDep, setAutocompleteDep] = useState(null)
@@ -21,7 +21,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
     is_reserved: false,
     reservation_agent: '',
     reservation_advance_time: '',
-    checkin_time: '', // ✨ 新增：報到時間
     currency: 'TWD'
   })
 
@@ -51,7 +50,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         is_reserved: itemToEdit.is_reserved || false,
         reservation_agent: itemToEdit.reservation_agent || '',
         reservation_advance_time: itemToEdit.reservation_advance_time || '',
-        checkin_time: itemToEdit.checkin_time || '', // ✨ 新增：報到時間
         currency: itemToEdit.currency || 'TWD'
       })
       const savedDetails = itemToEdit.category === 'transport' ? itemToEdit.transport_details : itemToEdit.accommodation_details
@@ -63,7 +61,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         rating: '', cost: '', notes: '', opening_hours: '',
         attachment_url: '', attachment_type: '',
         is_reserved: false, reservation_agent: '', reservation_advance_time: '',
-        checkin_time: '', // ✨ 新增：報到時間
         currency: 'TWD'
       })
       setDetails({
@@ -321,7 +318,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         is_reserved: formData.is_reserved,
         reservation_agent: formData.reservation_agent,
         reservation_advance_time: formData.reservation_advance_time,
-        checkin_time: formData.checkin_time || null, // ✨ 新增：報到時間
         currency: formData.currency,
         sort_order: newSortOrder
       }
@@ -475,6 +471,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         .btn-save { background: #007bff; color: white; }
         .btn-cancel { background: var(--btn-gray); color: var(--text-color); }
         .btn-delete { background: #dc3545; color: white; }
+        .btn-move { background: #28a745; color: white; }
         
         .transport-options { display: flex; margin-bottom: 15px; background: var(--btn-gray); padding: 4px; border-radius: 8px; }
         .transport-btn { flex: 1; padding: 8px; border: none; cursor: pointer; background: transparent; color: var(--text-sub); font-size: 13px; border-radius: 6px; font-weight: 500; }
@@ -590,19 +587,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                 )}
 
                 <div className="section-transport-time">
-                    {/* ✨ 新增：報到時間 (僅飛機/火車) */}
-                    {details.sub_type === 'flight_train' && (
-                        <div style={{marginBottom:'10px'}}>
-                            <label>報到時間</label>
-                            <input 
-                                type="time" 
-                                value={formData.checkin_time} 
-                                onChange={e => setFormData({...formData, checkin_time: e.target.value})} 
-                                placeholder="例如: 09:00"
-                            />
-                        </div>
-                    )}
-                    
                     <div className="form-row">
                         <div className="form-col">
                             <label>出發時間</label>
@@ -725,12 +709,10 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     </div>
                 </div>
                 
-                {/* 預約區塊 (Food 和 Activity) */}
-                {(formData.category === 'food' || formData.category === 'activity') && (
+                {/* 預約區塊 (僅 Food) */}
+                {formData.category === 'food' && (
                     <div style={{ marginTop: '10px', marginBottom: '15px', padding: '15px', background: 'var(--bg-transport)', borderRadius: '10px', border: '1px solid var(--border-transport)' }}>
-                        <div className="section-title" style={{ marginTop: 0 }}>
-                            {formData.category === 'food' ? '🍴 餐廳訂位資訊' : '🎡 景點活動預約資訊'}
-                        </div>
+                        <div className="section-title" style={{ marginTop: 0 }}>🍴 餐廳訂位資訊</div>
                         <div className="form-row">
                             <div className="form-col">
                                 <label>是否預約</label>
@@ -745,25 +727,13 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                             </div>
                             <div className="form-col">
                                 <label>預約管道 (Agent)</label>
-                                <input placeholder="電話 / 官網 / Klook / KKday" value={formData.reservation_agent} onChange={e => setFormData({ ...formData, reservation_agent: e.target.value })} />
+                                <input placeholder="電話 / OpenTable / 官網" value={formData.reservation_agent} onChange={e => setFormData({ ...formData, reservation_agent: e.target.value })} />
                             </div>
                         </div>
                         <div style={{ marginTop: '5px' }}>
                              <label>開放預約時間 (多久前)</label>
                              <input placeholder="例如: 30天前 / 每月1號" value={formData.reservation_advance_time} onChange={e => setFormData({ ...formData, reservation_advance_time: e.target.value })} />
                         </div>
-                        {/* ✨ 新增：報到時間 (僅 Activity) */}
-                        {formData.category === 'activity' && (
-                            <div style={{ marginTop: '5px' }}>
-                                <label>報到時間</label>
-                                <input 
-                                    type="time" 
-                                    value={formData.checkin_time} 
-                                    onChange={e => setFormData({ ...formData, checkin_time: e.target.value })} 
-                                    placeholder="例如: 09:00"
-                                />
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -794,6 +764,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         <div className="modal-footer">
             <div className="btn-group">
                 {itemToEdit && <button type="button" onClick={handleDelete} className="btn btn-delete">刪除</button>}
+                {itemToEdit && onMove && <button type="button" onClick={onMove} className="btn btn-move">移動</button>}
                 <button type="button" onClick={onClose} className="btn btn-cancel">取消</button>
                 <button type="submit" form="edit-form" disabled={loading} className="btn btn-save">儲存</button>
             </div>

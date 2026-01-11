@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from 'react'
+import { useEffect, useState, Fragment, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import TripSettingsModal from './TripSettingsModal'
@@ -10,7 +10,7 @@ import { useJsApiLoader } from '@react-google-maps/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 // ✨ DND Kit Imports
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, pointerWithin, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
 
@@ -40,6 +40,11 @@ export default function TripDetails() {
 
   // ✨ 控制地圖選擇視窗的狀態
   const [mapSelectorAddress, setMapSelectorAddress] = useState(null)
+  
+  // ✨ 新增：複製和移動相關狀態
+  const [showDaySelector, setShowDaySelector] = useState(false)
+  const [actionItem, setActionItem] = useState(null)
+  const [actionType, setActionType] = useState(null) // 'copy' or 'move'
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES })
 
@@ -290,14 +295,149 @@ export default function TripDetails() {
   const handleRefresh = () => {
       queryClient.invalidateQueries(['tripDetails', tripId])
   }
+  
+  // ✨ 新增：複製項目
+  const handleCopyItem = (item) => {
+    setActionItem(item)
+    setActionType('copy')
+    setShowDaySelector(true)
+  }
+  
+  // ✨ 新增：移動項目
+  const handleMoveItem = (item) => {
+    setActionItem(item)
+    setActionType('move')
+    setShowDaySelector(true)
+  }
+  
+  // ✨ 新增：執行複製或移動操作
+  const handleExecuteCopyMove = async (targetDay) => {
+    if (!actionItem || !actionType) return
+    
+    const currentDayItems = items.filter(item => item.trip_day_id === targetDay.id)
+    const maxSortOrder = currentDayItems.length > 0 
+      ? Math.max(...currentDayItems.map(item => item.sort_order)) 
+      : 0
+    const newSortOrder = maxSortOrder + 100
+    
+    const payload = {
+      trip_id: trip.id,
+      trip_day_id: targetDay.id,
+      category: actionItem.category,
+      name: actionItem.name,
+      start_time: actionItem.start_time,
+      end_time: actionItem.end_time,
+      cost: actionItem.cost || 0,
+      currency: actionItem.currency || 'TWD',
+      location_name: actionItem.location_name || '',
+      address: actionItem.address || '',
+      notes: actionItem.notes || '',
+      phone: actionItem.phone || '',
+      website: actionItem.website || '',
+      opening_hours: actionItem.opening_hours,
+      is_reserved: actionItem.is_reserved || false,
+      reservation_agent: actionItem.reservation_agent || '',
+      reservation_advance_time: actionItem.reservation_advance_time || null,
+      checkin_time: actionItem.checkin_time || null,
+      sort_order: newSortOrder,
+      transport_details: actionItem.transport_details,
+      accommodation_details: actionItem.accommodation_details,
+      attachment_url: actionItem.attachment_url,
+      attachment_type: actionItem.attachment_type
+    }
+    
+    try {
+      if (actionType === 'copy') {
+        // 複製：插入新項目
+        await supabase.from('itinerary_items').insert(payload)
+        alert('✅ 複製成功')
+      } else {
+        // 移動：更新現有項目
+        await supabase.from('itinerary_items')
+          .update(payload)
+          .eq('id', actionItem.id)
+        alert('✅ 移動成功')
+        
+        // 移動後自動選擇目標日期
+        setSelectedDay(targetDay)
+      }
+      
+      // 重新載入資料
+      handleRefresh()
+    } catch (error) {
+      console.error(`${actionType === 'copy' ? '複製' : '移動'}失敗:`, error)
+      alert(`${actionType === 'copy' ? '複製' : '移動'}失敗: ${error.message}`)
+    } finally {
+      // 重置狀態
+      setShowDaySelector(false)
+      setActionItem(null)
+      setActionType(null)
+    }
+  }
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
+    // 檢查是否拖放到日期區域（格式：day-{dayId}）
+    const overIdString = String(over.id)
+    if (overIdString.startsWith('day-')) {
+      // 跨日期拖放
+      const targetDayId = overIdString.replace('day-', '')
+      const draggedItem = items.find(item => item.id === active.id)
+      if (!draggedItem) return
+      
+      // 如果拖放到同一天，不處理（需要比较 UUID 字符串）
+      if (String(draggedItem.trip_day_id) === targetDayId) return
+      
+      // 計算目標日期的最大 sort_order
+      const targetDayItems = items.filter(item => item.trip_day_id === targetDayId)
+      const maxSortOrder = targetDayItems.length > 0 
+        ? Math.max(...targetDayItems.map(item => item.sort_order)) 
+        : 0
+      const newSortOrder = maxSortOrder + 100
+      
+      // 更新項目到目標日期
+      try {
+        await supabase
+          .from('itinerary_items')
+          .update({ 
+            trip_day_id: targetDayId,
+            sort_order: newSortOrder
+          })
+          .eq('id', active.id)
+        
+        // 更新當前日期項目的排序
+        const currentDayItems = items.filter(i => i.trip_day_id === draggedItem.trip_day_id && i.id !== active.id)
+        if (currentDayItems.length > 0) {
+          const updates = currentDayItems.map((item, index) => ({
+            id: item.id,
+            sort_order: (index + 1) * 100
+          }))
+          await supabase.from('itinerary_items').upsert(updates)
+        }
+        
+        queryClient.invalidateQueries(['tripDetails', tripId])
+        // 自動切換到目標日期
+        const targetDay = days.find(d => d.id === targetDayId)
+        if (targetDay) {
+          setSelectedDay(targetDay)
+        }
+      } catch (error) {
+        console.error('跨日期移動失敗:', error)
+        alert('移動失敗: ' + error.message)
+        handleRefresh()
+      }
+      return
+    }
+
+    // 同一天內的排序
     const currentDayItems = items.filter(i => i.trip_day_id === selectedDay.id);
     const oldIndex = currentDayItems.findIndex((item) => item.id === active.id);
     const newIndex = currentDayItems.findIndex((item) => item.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) return
+    
     const newOrder = arrayMove(currentDayItems, oldIndex, newIndex);
       
     const otherItems = items.filter(i => i.trip_day_id !== selectedDay.id);
@@ -305,9 +445,9 @@ export default function TripDetails() {
 
     try {
         const updates = newOrder.map((item, index) => ({
-            ...item, 
+            id: item.id,
             trip_id: tripId, 
-            sort_order: index + 1
+            sort_order: (index + 1) * 100
         }));
 
         const { error } = await supabase.from('itinerary_items').upsert(updates);
@@ -359,7 +499,53 @@ export default function TripDetails() {
         </div>
     );
   };
-
+  
+  // ✨ 新增：日期選擇器模态框
+  const DaySelectorModal = ({ onSelect, onClose }) => {
+    const currentDayId = selectedDay?.id
+    
+    return (
+      <div className="map-modal-overlay" onClick={onClose}>
+        <div className="map-modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', overflow: 'auto' }}>
+          <h3 style={{margin: '0 0 15px 0', textAlign: 'center'}}>選擇日期</h3>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '0'}}>
+            {days.map((day, index) => (
+              <button
+                key={day.id}
+                onClick={() => onSelect(day)}
+                disabled={day.id === currentDayId}
+                style={{
+                  padding: '12px 20px',
+                  background: day.id === currentDayId ? 'rgba(128,128,128,0.1)' : 'transparent',
+                  border: 'none',
+                  borderBottom: index < days.length - 1 ? '1px solid var(--border-card)' : 'none',
+                  color: day.id === currentDayId ? 'var(--text-muted)' : 'var(--text-main)',
+                  cursor: day.id === currentDayId ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  opacity: day.id === currentDayId ? 0.6 : 1
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontWeight: '600' }}>D-{day.day_number}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-sub)' }}>{day.day_date}</div>
+                  {day.title && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-sub)' }}>{day.title}</div>
+                  )}
+                </div>
+                {day.id === currentDayId && (
+                  <span style={{ color: 'var(--primary)', fontSize: '1.2rem' }}>✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <button onClick={onClose} className="map-cancel-btn" style={{ marginTop: '15px' }}>取消</button>
+        </div>
+      </div>
+    )
+  }
   // 🔥 新增：GapInserter 元件 (插在行程卡之間的 UI)
   const GapInserter = ({ onInsert }) => (
     <div className="gap-inserter-container" onClick={(e) => e.stopPropagation()}>
@@ -367,6 +553,30 @@ export default function TripDetails() {
         <button className="gap-plus-btn" onClick={onInsert}>+</button>
     </div>
   );
+  
+  // ✨ 新增：可拖放的日期項組件
+  const DroppableDay = ({ day, children, isSelected }) => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: `day-${day.id}`,
+    });
+    
+    return (
+      <div
+        ref={setNodeRef}
+        className={`day-item ${isSelected ? 'day-item-active' : ''} ${isOver ? 'day-item-drag-over' : ''}`}
+        style={{
+          width: '100%',
+          ...(isOver ? {
+            backgroundColor: 'var(--primary)',
+            opacity: 0.8,
+            border: '2px dashed var(--primary)'
+          } : {})
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
 
   // --- Card Components ---
 
@@ -397,7 +607,7 @@ export default function TripDetails() {
     }
 
     return (
-      <div onClick={() => openEditItemModal(item)} className="card transport-card">
+      <div onClick={() => openEditItemModal(item)} className="card transport-card" style={{ position: 'relative' }}>
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
           <span>
             {isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}
@@ -469,7 +679,7 @@ export default function TripDetails() {
     const acc = item.accommodation_details || {};
     const isStay = acc.is_generated_stay; 
     return (
-      <div onClick={() => openEditItemModal(item)} className={`card accommodation-card ${isStay ? 'is-stay' : ''}`}>
+      <div onClick={() => openEditItemModal(item)} className={`card accommodation-card ${isStay ? 'is-stay' : ''}`} style={{ position: 'relative' }}>
         <div className="card-header header-orange">
           <span>🛏️ {isStay ? '續住：' : '入住：'} {item.name.replace('🏨 住宿: ', '')}</span>
           <span>{acc.agent || '住宿'}</span>
@@ -532,7 +742,7 @@ export default function TripDetails() {
     const showReservation = (item.category === 'food' || item.category === 'activity') && (item.is_reserved || item.reservation_agent || item.reservation_advance_time || item.checkin_time);
 
     return (
-      <li onClick={() => openEditItemModal(item)} className="card general-card">
+      <li onClick={() => openEditItemModal(item)} className="card general-card" style={{ position: 'relative' }}>
         <div className="general-left">
           <div className="category-icon">{getCategoryIcon(item.category)}</div>
           <div className="general-content">
@@ -829,7 +1039,7 @@ export default function TripDetails() {
       const [isExpanded, setIsExpanded] = useState(false);
 
       return (
-          <div onClick={() => openEditItemModal(item)} className="card note-card" style={{ cursor: 'pointer' }}>
+          <div onClick={() => openEditItemModal(item)} className="card note-card" style={{ cursor: 'pointer', position: 'relative' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div className="note-title" style={{ margin: 0, flex: 1 }}>
                       📝 {item.name}
@@ -1050,34 +1260,51 @@ export default function TripDetails() {
         .layout-container { display: flex; gap: 24px; min-height: 600px; position: relative; z-index: 1; }
 
         .sidebar { 
-            width: 240px; 
-            padding: 16px;
+            width: 180px; 
+            padding: 12px;
             background: var(--bg-sidebar); 
             backdrop-filter: var(--glass-blur);
             border: 1px solid var(--border-card);
             border-radius: var(--radius-card);
             box-shadow: var(--shadow-card);
             overflow-y: auto; 
+            overflow-x: hidden;
             max-height: 80vh; 
             position: sticky; 
-            top: 100px; 
+            top: 100px;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .day-item { 
-            padding: 12px 16px; 
+            padding: 10px 12px; 
             cursor: pointer; 
-            margin-bottom: 8px; 
+            margin-bottom: 6px; 
             border-radius: var(--radius-btn); 
             transition: all 0.2s ease; 
             color: var(--text-sub);
             border: 1px solid transparent;
+            position: relative;
+            min-height: 55px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            word-break: break-word;
         }
         .day-item:hover { background: var(--day-item-hover); color: var(--text-main); }
         .day-item-active { background-color: var(--day-item-active-bg) !important; color: var(--day-item-active-text) !important; box-shadow: var(--shadow-card); border: 1px solid var(--border-card); font-weight: 600; }
+        .day-item-drag-over { background-color: var(--primary) !important; opacity: 0.8 !important; border: 2px dashed var(--primary) !important; }
         .day-item-active .day-item-text-title { color: var(--day-item-active-text); }
         .day-item-active .day-item-text-date { color: var(--text-sub); }
-        .day-item-text-title { font-weight: 600; font-size: 1rem; }
-        .day-item-text-date { font-size: 0.85rem; margin-top: 4px; opacity: 0.8; }
+        .day-item-text-title { font-weight: 600; font-size: 0.9rem; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; }
+        .day-item-text-date { font-size: 0.75rem; margin-top: 3px; opacity: 0.8; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; }
 
         .content-area { 
           flex: 1; 
@@ -1264,11 +1491,18 @@ export default function TripDetails() {
             white-space: nowrap; 
             background: var(--bg-sidebar);
             position: sticky;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+          }
+          
+          .sidebar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+          }
+          
+          .sidebar {
             top: 55px; /* 調整 Sticky 位置配合 Header */
             z-index: 50;
             gap: 8px; /* 使用 gap 統一間距 */
-            scrollbar-width: thin; /* Firefox 細滾動條 */
-            scrollbar-color: var(--border-card) transparent; /* Firefox 滾動條顏色 */
             -webkit-overflow-scrolling: touch; /* iOS 平滑滾動 */
           }
           
@@ -1353,6 +1587,17 @@ export default function TripDetails() {
             onClose={() => setMapSelectorAddress(null)} 
           />
       )}
+      
+      {showDaySelector && (
+        <DaySelectorModal
+          onSelect={handleExecuteCopyMove}
+          onClose={() => {
+            setShowDaySelector(false)
+            setActionItem(null)
+            setActionType(null)
+          }}
+        />
+      )}
 
       {showSettings && <TripSettingsModal trip={trip} onClose={() => setShowSettings(false)} onUpdate={handleRefresh} />}
       
@@ -1367,7 +1612,11 @@ export default function TripDetails() {
           isLoaded={isLoaded}
           currentItemsCount={currentDayItems.length}
           onClose={() => setShowItemModal(false)} 
-          onSave={handleRefresh} 
+          onSave={handleRefresh}
+          onMove={editingItem ? () => {
+            setShowItemModal(false)
+            handleMoveItem(editingItem)
+          } : undefined}
           // 🔥 新增：傳遞排序參數給 Modal (需自行確認 Modal 是否有接收此 props)
           initialSortOrder={insertSortOrder}
         />
@@ -1474,18 +1723,23 @@ export default function TripDetails() {
         </div>
       </div>
       
-      <div className="layout-container">
-        <div className="sidebar">
-          {days.map(day => (
-            <div 
-              key={day.id} 
-              onClick={() => {
-                if (editingDayId !== day.id) {
-                  setSelectedDay(day)
-                }
-              }}
-              className={`day-item ${selectedDay?.id === day.id ? 'day-item-active' : ''}`}
-            >
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+        <div className="layout-container">
+          <div className="sidebar">
+            {days.map(day => (
+              <DroppableDay
+                key={day.id}
+                day={day}
+                isSelected={selectedDay?.id === day.id}
+              >
+                <div 
+                  onClick={() => {
+                    if (editingDayId !== day.id) {
+                      setSelectedDay(day)
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                >
               {editingDayId === day.id ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1575,19 +1829,19 @@ export default function TripDetails() {
                   <div className="day-item-text-date">{day.day_date} ({getWeekday(day.day_date)})</div>
                 </>
               )}
-            </div>
-          ))}
-        </div>
+                </div>
+              </DroppableDay>
+            ))}
+          </div>
 
-        <div className="content-area">
-          {selectedDay && (
-            <>
-              {/* ✨ Morning 卡片 */}
-              {selectedDay.show_morning_settings !== false && (
-                <MorningCard day={selectedDay} />
-              )}
-              
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div className="content-area">
+            {selectedDay && (
+              <>
+                {/* ✨ Morning 卡片 */}
+                {selectedDay.show_morning_settings !== false && (
+                  <MorningCard day={selectedDay} />
+                )}
+                
                 <SortableContext items={currentDayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, touchAction: 'pan-y' }}>
                     {currentDayItems.map((item, index) => (
@@ -1604,15 +1858,15 @@ export default function TripDetails() {
                     ))}
                   </ul>
                 </SortableContext>
-              </DndContext>
                 
-              <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
-                <span>➕</span> 新增行程 (最底部)
-              </button>
-            </>
-          )}
+                <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
+                  <span>➕</span> 新增行程 (最底部)
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </DndContext>
     </div>
   )
 }
