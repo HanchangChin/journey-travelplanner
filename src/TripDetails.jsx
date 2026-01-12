@@ -410,11 +410,15 @@ export default function TripDetails() {
         // 更新當前日期項目的排序
         const currentDayItems = items.filter(i => i.trip_day_id === draggedItem.trip_day_id && i.id !== active.id)
         if (currentDayItems.length > 0) {
-          const updates = currentDayItems.map((item, index) => ({
-            id: item.id,
-            sort_order: (index + 1) * 100
-          }))
-          await supabase.from('itinerary_items').upsert(updates)
+          // 使用 Promise.all 批量更新，避免使用 upsert（會導致缺少必填字段的錯誤）
+          await Promise.all(
+            currentDayItems.map((item, index) =>
+              supabase
+                .from('itinerary_items')
+                .update({ sort_order: (index + 1) * 100 })
+                .eq('id', item.id)
+            )
+          )
         }
         
         queryClient.invalidateQueries(['tripDetails', tripId])
@@ -444,14 +448,15 @@ export default function TripDetails() {
     setItems([...otherItems, ...newOrder]);
 
     try {
-        const updates = newOrder.map((item, index) => ({
-            id: item.id,
-            trip_id: tripId, 
-            sort_order: (index + 1) * 100
-        }));
-
-        const { error } = await supabase.from('itinerary_items').upsert(updates);
-        if (error) throw error;
+        // 使用 Promise.all 批量更新，避免使用 upsert（會導致缺少必填字段的錯誤）
+        await Promise.all(
+          newOrder.map((item, index) =>
+            supabase
+              .from('itinerary_items')
+              .update({ sort_order: (index + 1) * 100 })
+              .eq('id', item.id)
+          )
+        )
         queryClient.invalidateQueries(['tripDetails', tripId])
     } catch (error) {
         console.error('排序更新失敗:', error);
