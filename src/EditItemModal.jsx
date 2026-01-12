@@ -53,7 +53,14 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         currency: itemToEdit.currency || 'TWD'
       })
       const savedDetails = itemToEdit.category === 'transport' ? itemToEdit.transport_details : itemToEdit.accommodation_details
-      if (savedDetails) setDetails(prev => ({ ...prev, ...savedDetails }))
+      if (savedDetails) {
+        // ✨ 如果顶层字段有 checkin_time，优先使用顶层字段（向后兼容）
+        const checkinTime = itemToEdit.checkin_time || savedDetails.checkin_time || ''
+        setDetails(prev => ({ ...prev, ...savedDetails, checkin_time: checkinTime }))
+      } else if (itemToEdit.category === 'transport' && itemToEdit.checkin_time) {
+        // ✨ 如果没有 transport_details 但有顶层 checkin_time，也要加载
+        setDetails(prev => ({ ...prev, checkin_time: itemToEdit.checkin_time }))
+      }
     } else {
       setFormData({
         name: '', category: 'activity', start_time: '', end_time: '',
@@ -611,6 +618,13 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                         <label>時長</label>
                         <input value={details.duration_text} onChange={e => setDetails({...details, duration_text: e.target.value})} />
                     </div>
+                    {/* ✨ 報到時間 (僅航班/火車) */}
+                    {details.sub_type === 'flight_train' && (
+                        <div style={{marginTop:'10px'}}>
+                            <label>🕐 報到時間</label>
+                            <input type="time" value={details.checkin_time} onChange={e => setDetails({...details, checkin_time: e.target.value})} />
+                        </div>
+                    )}
                 </div>
 
                 <div style={{marginTop:'10px', background:'rgba(255,255,255,0.1)', padding:'10px', borderRadius:'8px', border:'1px dashed var(--border-transport-sub)'}}>
