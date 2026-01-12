@@ -319,6 +319,8 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         reservation_agent: formData.reservation_agent,
         reservation_advance_time: formData.reservation_advance_time,
         currency: formData.currency,
+        // ✨ 將 checkin_time 從 transport_details 提取到頂層字段
+        checkin_time: formData.category === 'transport' && details.checkin_time ? details.checkin_time : null,
         sort_order: newSortOrder
       }
 

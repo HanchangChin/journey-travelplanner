@@ -593,6 +593,8 @@ export default function TripDetails() {
     const isCarMode = t.sub_type === 'car_bus';
     const isPublic = t.sub_type === 'public'; 
     const isSimpleView = isPublic && (!item.start_time || !item.end_time);
+    // ✨ 報到時間：優先從頂層字段讀取，如果沒有則從 transport_details 讀取（向後兼容）
+    const checkinTime = item.checkin_time || t.checkin_time;
 
     const formatLocation = (locName, terminal) => {
         if (!locName) return '未設定地點';
@@ -617,9 +619,9 @@ export default function TripDetails() {
           <span>
             {isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}
             {/* ✨ 報到時間 (僅飛機/火車，顯示在標題旁邊) */}
-            {!isArrivalCard && !isCarMode && !isPublic && item.checkin_time && (
+            {!isArrivalCard && !isCarMode && !isPublic && checkinTime && (
               <span style={{marginLeft: '12px', fontSize: '0.9rem', fontWeight: 'bold'}}>
-                報到: {formatDisplayTime(item.checkin_time)}
+                報到: {formatDisplayTime(checkinTime)}
               </span>
             )}
           </span>
