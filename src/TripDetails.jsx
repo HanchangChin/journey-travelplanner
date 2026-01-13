@@ -616,13 +616,44 @@ export default function TripDetails() {
     return (
       <div onClick={() => openEditItemModal(item)} className="card transport-card" style={{ position: 'relative' }}>
         <div className={`card-header ${isCarMode || isPublic ? 'header-green' : 'header-blue'}`}>
-          <span>
-            {isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}
-            {/* ✨ 報到時間 (僅飛機/火車，顯示在標題旁邊) */}
-            {!isArrivalCard && !isCarMode && !isPublic && checkinTime && (
-              <span style={{marginLeft: '12px', fontSize: '0.9rem', fontWeight: 'bold'}}>
-                報到: {formatDisplayTime(checkinTime)}
-              </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>
+              {isPublic ? '🚌' : (isCarMode ? '🚗' : '✈️')} {t.company || '交通'} {t.vehicle_number}
+              {/* ✨ 報到時間 (僅飛機/火車，顯示在標題旁邊) */}
+              {!isArrivalCard && !isCarMode && !isPublic && checkinTime && (
+                <span style={{marginLeft: '12px', fontSize: '0.9rem', fontWeight: 'bold'}}>
+                  報到: {formatDisplayTime(checkinTime)}
+                </span>
+              )}
+            </span>
+            {/* ✨ 網址連結圖示 */}
+            {item.website && (
+              <a 
+                href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  transition: 'transform 0.1s',
+                  opacity: 0.8
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.1)'
+                  e.currentTarget.style.opacity = '1'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.opacity = '0.8'
+                }}
+                title={item.website}
+              >
+                🔗
+              </a>
             )}
           </span>
           <span>{travelers.length === 1 ? ((isCarMode||isPublic) ? '' : `PNR: ${travelers[0].booking_ref}`) : `👥 ${travelers.length} 人`}</span>
@@ -675,29 +706,6 @@ export default function TripDetails() {
             </div>
           )}
 
-          {/* ✨ 網址連結 */}
-          {item.website && (
-            <div className="transport-notes" style={{ marginTop: '8px' }}>
-              <a 
-                href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  color: '#007bff',
-                  textDecoration: 'underline',
-                  fontSize: '0.85rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                🔗 {item.website}
-                <span style={{ fontSize: '0.7rem' }}>↗</span>
-              </a>
-            </div>
-          )}
-
           {item.cost > 0 && <div className="transport-cost-tag">${formatCost(item.cost)}</div>}
         </div>
       </div>
@@ -716,7 +724,7 @@ export default function TripDetails() {
         </div>
         <div className="card-body">
             <div className="acc-info-row">
-                <div style={{flex: 1}}>
+                <div style={{flex: 1, display: 'flex', alignItems: 'center', gap: '8px'}}>
                     <div 
                         className="acc-address map-pin-container"
                         onClick={(e) => {
@@ -727,6 +735,29 @@ export default function TripDetails() {
                         <span className="map-pin-icon">📍</span>
                         <span style={{textDecoration:'underline'}}>{item.address}</span>
                     </div>
+                    
+                    {/* ✨ 網址連結圖示 */}
+                    {item.website && (
+                      <a 
+                        href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          fontSize: '1.2rem',
+                          cursor: 'pointer',
+                          transition: 'transform 0.1s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        title={item.website}
+                      >
+                        🔗
+                      </a>
+                    )}
                 </div>
                 
                 <div className="acc-cost-status-row">
@@ -755,29 +786,6 @@ export default function TripDetails() {
             )}
             
             {item.notes && <div className="card-notes">📝 {item.notes}</div>}
-            
-            {/* ✨ 網址連結 */}
-            {item.website && (
-              <div className="card-notes" style={{ marginTop: '8px' }}>
-                <a 
-                  href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    color: '#007bff',
-                    textDecoration: 'underline',
-                    fontSize: '0.85rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  🔗 {item.website}
-                  <span style={{ fontSize: '0.7rem' }}>↗</span>
-                </a>
-              </div>
-            )}
         </div>
       </div>
     )
@@ -818,7 +826,7 @@ export default function TripDetails() {
             )}
 
             {/* 地點與營業時間 */}
-            {(item.address || todayHours) && (
+            {(item.address || todayHours || item.website) && (
               <div className="general-sub" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 {item.address && (
                   <div 
@@ -833,34 +841,31 @@ export default function TripDetails() {
                   </div>
                 )}
                 
+                {/* ✨ 網址連結圖示 */}
+                {item.website && (
+                  <a 
+                    href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="tag-base tag-map"
+                    style={{
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title={item.website}
+                  >
+                    <span style={{fontSize:'1rem'}}>🔗</span>
+                  </a>
+                )}
+                
                 {todayHours && <div className="tag-base tag-hours">🕒 {todayHours}</div>}
               </div>
             )}
             
             {item.notes && <div className="general-sub">📝 {item.notes}</div>}
-            
-            {/* ✨ 網址連結 */}
-            {item.website && (
-              <div className="general-sub" style={{ marginTop: '4px' }}>
-                <a 
-                  href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    color: '#007bff',
-                    textDecoration: 'underline',
-                    fontSize: '0.85rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  🔗 {item.website}
-                  <span style={{ fontSize: '0.7rem' }}>↗</span>
-                </a>
-              </div>
-            )}
           </div>
         </div>
         <div className="general-right">
@@ -1172,7 +1177,7 @@ export default function TripDetails() {
                           </div>
                       )}
                       
-                      {/* ✨ 網址連結 */}
+                      {/* ✨ 網址連結圖示 */}
                       {item.website && (
                           <div className="note-attachment" style={{ marginTop: '12px' }}>
                               <a 
@@ -1181,9 +1186,10 @@ export default function TripDetails() {
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="attachment-link"
+                                  title={item.website}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', padding: '6px' }}
                               >
-                                  <span className="attach-icon">🔗</span>
-                                  <span>{item.website}</span>
+                                  <span className="attach-icon" style={{ fontSize: '1.2rem' }}>🔗</span>
                                   <span className="attach-arrow">↗</span>
                               </a>
                           </div>
