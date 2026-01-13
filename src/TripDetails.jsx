@@ -675,6 +675,29 @@ export default function TripDetails() {
             </div>
           )}
 
+          {/* ✨ 網址連結 */}
+          {item.website && (
+            <div className="transport-notes" style={{ marginTop: '8px' }}>
+              <a 
+                href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  color: '#007bff',
+                  textDecoration: 'underline',
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                🔗 {item.website}
+                <span style={{ fontSize: '0.7rem' }}>↗</span>
+              </a>
+            </div>
+          )}
+
           {item.cost > 0 && <div className="transport-cost-tag">${formatCost(item.cost)}</div>}
         </div>
       </div>
@@ -732,6 +755,29 @@ export default function TripDetails() {
             )}
             
             {item.notes && <div className="card-notes">📝 {item.notes}</div>}
+            
+            {/* ✨ 網址連結 */}
+            {item.website && (
+              <div className="card-notes" style={{ marginTop: '8px' }}>
+                <a 
+                  href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    color: '#007bff',
+                    textDecoration: 'underline',
+                    fontSize: '0.85rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🔗 {item.website}
+                  <span style={{ fontSize: '0.7rem' }}>↗</span>
+                </a>
+              </div>
+            )}
         </div>
       </div>
     )
@@ -792,6 +838,29 @@ export default function TripDetails() {
             )}
             
             {item.notes && <div className="general-sub">📝 {item.notes}</div>}
+            
+            {/* ✨ 網址連結 */}
+            {item.website && (
+              <div className="general-sub" style={{ marginTop: '4px' }}>
+                <a 
+                  href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    color: '#007bff',
+                    textDecoration: 'underline',
+                    fontSize: '0.85rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🔗 {item.website}
+                  <span style={{ fontSize: '0.7rem' }}>↗</span>
+                </a>
+              </div>
+            )}
           </div>
         </div>
         <div className="general-right">
@@ -1098,6 +1167,23 @@ export default function TripDetails() {
                               <a href={item.attachment_url} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="attachment-link">
                                   <span className="attach-icon">{item.attachment_type === 'image' ? '🖼️' : '📄'}</span> 
                                   <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
+                                  <span className="attach-arrow">↗</span>
+                              </a>
+                          </div>
+                      )}
+                      
+                      {/* ✨ 網址連結 */}
+                      {item.website && (
+                          <div className="note-attachment" style={{ marginTop: '12px' }}>
+                              <a 
+                                  href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="attachment-link"
+                              >
+                                  <span className="attach-icon">🔗</span>
+                                  <span>{item.website}</span>
                                   <span className="attach-arrow">↗</span>
                               </a>
                           </div>
