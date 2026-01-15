@@ -818,8 +818,8 @@ export default function TripDetails() {
                     }
                     {item.reservation_agent && <span>🎫 {item.reservation_agent}</span>}
                     {item.reservation_advance_time && <span>⏰ {item.reservation_advance_time}</span>}
-                    {/* ✨ 新增：報到時間 (僅 Activity) */}
-                    {item.category === 'activity' && item.checkin_time && (
+                    {/* ✨ 新增：報到時間 (景點和餐廳) */}
+                    {(item.category === 'activity' || item.category === 'food') && item.checkin_time && (
                         <span>🕐 報到: {formatDisplayTime(item.checkin_time)}</span>
                     )}
                 </div>

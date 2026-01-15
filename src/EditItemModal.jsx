@@ -52,6 +52,11 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         reservation_advance_time: itemToEdit.reservation_advance_time || '',
         currency: itemToEdit.currency || 'TWD'
       })
+      // ✨ 加载 checkin_time（适用于 transport、activity、food）
+      if (itemToEdit.checkin_time) {
+        setDetails(prev => ({ ...prev, checkin_time: itemToEdit.checkin_time }))
+      }
+      
       const savedDetails = itemToEdit.category === 'transport' ? itemToEdit.transport_details : itemToEdit.accommodation_details
       if (savedDetails) {
         // ✨ 如果顶层字段有 checkin_time，优先使用顶层字段（向后兼容）
@@ -326,8 +331,8 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
         reservation_agent: formData.reservation_agent,
         reservation_advance_time: formData.reservation_advance_time,
         currency: formData.currency,
-        // ✨ 將 checkin_time 從 transport_details 提取到頂層字段
-        checkin_time: formData.category === 'transport' && details.checkin_time ? details.checkin_time : null,
+        // ✨ 將 checkin_time 提取到頂層字段（適用於 transport、activity、food）
+        checkin_time: (formData.category === 'transport' || formData.category === 'activity' || formData.category === 'food') && details.checkin_time ? details.checkin_time : null,
         sort_order: newSortOrder
       }
 
@@ -750,6 +755,11 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                              <label>開放預約時間 (多久前)</label>
                              <input placeholder="例如: 30天前 / 每月1號" value={formData.reservation_advance_time} onChange={e => setFormData({ ...formData, reservation_advance_time: e.target.value })} />
                         </div>
+                        {/* ✨ 報到時間 (餐廳) */}
+                        <div style={{ marginTop: '10px' }}>
+                            <label>🕐 報到時間</label>
+                            <input type="time" value={details.checkin_time} onChange={e => setDetails({...details, checkin_time: e.target.value})} />
+                        </div>
                     </div>
                 )}
 
@@ -757,6 +767,14 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     <div className="form-col"><label>開始</label><input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} /></div>
                     <div className="form-col"><label>結束</label><input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} /></div>
                 </div>
+                
+                {/* ✨ 報到時間 (景點) */}
+                {formData.category === 'activity' && (
+                    <div style={{marginTop:'10px'}}>
+                        <label>🕐 報到時間</label>
+                        <input type="time" value={details.checkin_time} onChange={e => setDetails({...details, checkin_time: e.target.value})} />
+                    </div>
+                )}
                 
                 <div style={{marginTop:'10px'}}>
                     <label>費用</label>
