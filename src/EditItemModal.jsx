@@ -730,10 +730,10 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     </div>
                 </div>
                 
-                {/* 預約區塊 (僅 Food) */}
-                {formData.category === 'food' && (
+                {/* 預約區塊 (Food 和 Activity) */}
+                {(formData.category === 'food' || formData.category === 'activity') && (
                     <div style={{ marginTop: '10px', marginBottom: '15px', padding: '15px', background: 'var(--bg-transport)', borderRadius: '10px', border: '1px solid var(--border-transport)' }}>
-                        <div className="section-title" style={{ marginTop: 0 }}>🍴 餐廳訂位資訊</div>
+                        <div className="section-title" style={{ marginTop: 0 }}>{formData.category === 'food' ? '🍴 餐廳訂位資訊' : '🎡 景點預約資訊'}</div>
                         <div className="form-row">
                             <div className="form-col">
                                 <label>是否預約</label>
@@ -755,7 +755,7 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                              <label>開放預約時間 (多久前)</label>
                              <input placeholder="例如: 30天前 / 每月1號" value={formData.reservation_advance_time} onChange={e => setFormData({ ...formData, reservation_advance_time: e.target.value })} />
                         </div>
-                        {/* ✨ 報到時間 (餐廳) */}
+                        {/* ✨ 報到時間 (餐廳和景點) */}
                         <div style={{ marginTop: '10px' }}>
                             <label>🕐 報到時間</label>
                             <input type="time" value={details.checkin_time} onChange={e => setDetails({...details, checkin_time: e.target.value})} />
@@ -767,14 +767,6 @@ export default function EditItemModal({ tripId, dayId, days = [], itemToEdit, on
                     <div className="form-col"><label>開始</label><input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} /></div>
                     <div className="form-col"><label>結束</label><input type="time" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} /></div>
                 </div>
-                
-                {/* ✨ 報到時間 (景點) */}
-                {formData.category === 'activity' && (
-                    <div style={{marginTop:'10px'}}>
-                        <label>🕐 報到時間</label>
-                        <input type="time" value={details.checkin_time} onChange={e => setDetails({...details, checkin_time: e.target.value})} />
-                    </div>
-                )}
                 
                 <div style={{marginTop:'10px'}}>
                     <label>費用</label>
