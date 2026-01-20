@@ -271,6 +271,24 @@ export default function TripDetails() {
     setInsertSortOrder(null); // Reset
     setShowItemModal(true); 
   }
+
+  // ✨ 新增：切換到前一天
+  const goToPreviousDay = () => {
+    if (!selectedDay || !days.length) return
+    const currentIndex = days.findIndex(day => day.id === selectedDay.id)
+    if (currentIndex > 0) {
+      setSelectedDay(days[currentIndex - 1])
+    }
+  }
+
+  // ✨ 新增：切換到後一天
+  const goToNextDay = () => {
+    if (!selectedDay || !days.length) return
+    const currentIndex = days.findIndex(day => day.id === selectedDay.id)
+    if (currentIndex < days.length - 1) {
+      setSelectedDay(days[currentIndex + 1])
+    }
+  }
   
   const openEditItemModal = (item) => { setEditingItem(item); setShowItemModal(true); }
 
@@ -1958,9 +1976,110 @@ export default function TripDetails() {
                   </ul>
                 </SortableContext>
                 
-                <button onClick={openNewItemModal} style={{ width: '100%', padding: '16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '50px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.transform='scale(1.01)'} onMouseOut={(e)=>e.currentTarget.style.transform='scale(1)'}>
-                  <span>➕</span> 新增行程 (最底部)
-                </button>
+                {/* 底部新增按鈕（包含前一天/後一天切換，都在藍色框內） */}
+                <div 
+                  onClick={openNewItemModal}
+                  style={{ 
+                    width: '100%',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    padding: '16px', 
+                    background: 'var(--primary)', 
+                    color: 'white', 
+                    border: '1px solid transparent',
+                    borderRadius: '12px', 
+                    cursor: 'pointer', 
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    gap: '12px', 
+                    marginBottom: '50px', 
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                  }}
+                >
+                  {/* 前一天按鈕（縮小50%） */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      goToPreviousDay()
+                    }}
+                    disabled={!selectedDay || days.findIndex(day => day.id === selectedDay.id) === 0}
+                    style={{ 
+                      width: '60px', 
+                      height: '30px', 
+                      padding: '4px 6px', 
+                      background: 'rgba(255, 255, 255, 0.2)', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      cursor: (!selectedDay || days.findIndex(day => day.id === selectedDay.id) === 0) ? 'not-allowed' : 'pointer', 
+                      fontSize: '11px', 
+                      fontWeight: 'normal', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '2px',
+                      opacity: (!selectedDay || days.findIndex(day => day.id === selectedDay.id) === 0) ? 0.5 : 1,
+                      transition: 'transform 0.2s'
+                    }} 
+                    onMouseOver={(e) => {
+                      if (!e.currentTarget.disabled) {
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                      }
+                    }} 
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    <span style={{ fontSize: '10px' }}>◀</span>
+                    <span>前一天</span>
+                  </button>
+                  
+                  {/* 新增行程文字（中間） */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
+                    <span>➕</span> 新增行程 (最底部)
+                  </div>
+                  
+                  {/* 後一天按鈕（縮小50%） */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      goToNextDay()
+                    }}
+                    disabled={!selectedDay || days.findIndex(day => day.id === selectedDay.id) === days.length - 1}
+                    style={{ 
+                      width: '60px', 
+                      height: '30px', 
+                      padding: '4px 6px', 
+                      background: 'rgba(255, 255, 255, 0.2)', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      cursor: (!selectedDay || days.findIndex(day => day.id === selectedDay.id) === days.length - 1) ? 'not-allowed' : 'pointer', 
+                      fontSize: '11px', 
+                      fontWeight: 'normal', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '2px',
+                      opacity: (!selectedDay || days.findIndex(day => day.id === selectedDay.id) === days.length - 1) ? 0.5 : 1,
+                      transition: 'transform 0.2s'
+                    }} 
+                    onMouseOver={(e) => {
+                      if (!e.currentTarget.disabled) {
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                      }
+                    }} 
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    <span>後一天</span>
+                    <span style={{ fontSize: '10px' }}>▶</span>
+                  </button>
+                </div>
               </>
             )}
           </div>
