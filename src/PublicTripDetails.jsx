@@ -11,6 +11,8 @@ export default function PublicTripDetails() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  // ✨ 新增：追蹤每個卡片的展開狀態
+  const [expandedNotes, setExpandedNotes] = useState({})
 
   // Helpers (與原本相同)
   const getWeekday = (dateString) => new Date(dateString).toLocaleDateString('zh-TW', { weekday: 'short' })
@@ -60,22 +62,143 @@ export default function PublicTripDetails() {
 
   const currentDayItems = items.filter(item => item.trip_day_id === selectedDay?.id)
 
+  // ✨ 切換筆記展開狀態
+  const toggleNote = (itemId) => {
+    setExpandedNotes(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }))
+  }
+
   // 簡單的卡片渲染 (Read-Only)
-  const ReadOnlyCard = ({ item }) => (
-    <div style={{
-        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)',
-        marginBottom: '10px', borderRadius: '12px', padding: '15px',
-        borderLeft: `4px solid ${item.category === 'transport' ? '#007bff' : item.category === 'accommodation' ? '#ff7043' : '#28a745'}`,
-        boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-    }}>
-        <div style={{display:'flex', justifyContent:'space-between'}}>
-            <div style={{fontWeight:'bold', fontSize:'16px', color:'#333'}}>{item.name}</div>
-            <div style={{fontWeight:'bold', color:'#666'}}>{formatDisplayTime(item.start_time)}</div>
-        </div>
-        {item.notes && <div style={{fontSize:'13px', color:'#666', marginTop:'5px'}}>📝 {item.notes}</div>}
-        {item.location_name && <div style={{fontSize:'12px', color:'#888', marginTop:'2px'}}>📍 {item.location_name}</div>}
-    </div>
-  )
+  const ReadOnlyCard = ({ item }) => {
+    const isNoteExpanded = expandedNotes[item.id] || false
+    const isNoteCategory = item.category === 'note'
+    
+    return (
+      <div style={{
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)',
+          marginBottom: '10px', borderRadius: '12px', padding: '15px',
+          borderLeft: `4px solid ${item.category === 'transport' ? '#007bff' : item.category === 'accommodation' ? '#ff7043' : item.category === 'note' ? '#f59e0b' : '#28a745'}`,
+          boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+      }}>
+          {/* 標題區域 */}
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+              <div 
+                style={{
+                  fontWeight:'bold', 
+                  fontSize:'16px', 
+                  color:'#333',
+                  flex: 1,
+                  cursor: (isNoteCategory || item.notes) ? 'pointer' : 'default'
+                }}
+                onClick={() => (isNoteCategory || item.notes) && toggleNote(item.id)}
+              >
+                  {isNoteCategory ? '📝 ' : ''}{item.name}
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap: '8px'}}>
+                  {item.start_time && (
+                    <div style={{fontWeight:'bold', color:'#666'}}>{formatDisplayTime(item.start_time)}</div>
+                  )}
+                  {/* ✨ 展開/折疊按鈕（僅在筆記類型或有筆記時顯示） */}
+                  {(isNoteCategory || item.notes) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleNote(item.id)
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: '#666',
+                        transition: 'transform 0.3s ease',
+                        transform: isNoteExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}
+                      title={isNoteExpanded ? '收起' : '展開'}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10L12 15L17 10H7Z" />
+                      </svg>
+                    </button>
+                  )}
+              </div>
+          </div>
+          
+          {/* ✨ 筆記內容（預設折疊，點擊標題才展開） */}
+          {isNoteExpanded && item.notes && (
+            <div style={{
+              fontSize:'13px', 
+              color:'#666', 
+              marginTop:'10px',
+              paddingTop:'10px',
+              borderTop: '1px dashed rgba(0,0,0,0.1)',
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.6'
+            }}>
+              {item.notes}
+            </div>
+          )}
+          
+          {/* 其他資訊（非筆記類型或筆記未展開時顯示） */}
+          {!isNoteCategory && item.location_name && (
+            <div style={{fontSize:'12px', color:'#888', marginTop:'5px'}}>📍 {item.location_name}</div>
+          )}
+          
+          {/* ✨ 筆記類型的附件和網址（僅在展開時顯示） */}
+          {isNoteCategory && isNoteExpanded && (
+            <>
+              {item.attachment_url && (
+                <div style={{marginTop:'10px'}}>
+                  <a 
+                    href={item.attachment_url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#007bff',
+                      textDecoration: 'none',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <span>{item.attachment_type === 'image' ? '🖼️' : '📄'}</span>
+                    <span>{item.attachment_type === 'image' ? '圖片' : '文件'}</span>
+                    <span>↗</span>
+                  </a>
+                </div>
+              )}
+              {item.website && (
+                <div style={{marginTop:'8px'}}>
+                  <a 
+                    href={item.website.startsWith('http') ? item.website : `https://${item.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#007bff',
+                      textDecoration: 'none',
+                      fontSize: '13px'
+                    }}
+                    title={item.website}
+                  >
+                    <span>🔗</span>
+                    <span>連結</span>
+                    <span>↗</span>
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+      </div>
+    )
+  }
 
   return (
     <div className="container" style={{maxWidth:'800px', margin:'0 auto', paddingBottom:'50px'}}>
