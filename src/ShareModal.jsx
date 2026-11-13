@@ -16,12 +16,14 @@ export default function ShareModal({ trip, onClose, onUpdate }) {
   const shareUrl = `${window.location.origin}/share/${trip.share_token || ''}`
 
   // 載入目前已共享的成員清單
+  // 1. 修改 fetchMembers：只撈取真正的註冊帳號（user_id 不為 null），並帶出 email
   const fetchMembers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('trip_members')
-        .select('id, user_id, role, created_at')
+        .select('id, user_id, email, role, created_at')
         .eq('trip_id', trip.id)
+        .not('user_id', 'is', null) // 👈 過濾掉沒有綁定帳號的純文字旅伴，避免 slice(0, 8) 報錯
         .order('created_at', { ascending: true })
 
       if (error) throw error
@@ -219,7 +221,7 @@ export default function ShareModal({ trip, onClose, onUpdate }) {
                     }}
                   >
                     <span style={{ color: '#ddd' }}>
-                      帳號 ID: {m.user_id.slice(0, 8)}... ({m.role === 'editor' ? '編輯' : '唯讀'})
+                      {m.email || `帳號 ID: ${m.user_id?.slice(0, 8)}...`} ({m.role === 'editor' ? '編輯' : '唯讀'})
                     </span>
                     <button
                       onClick={() => handleRemoveMember(m.user_id)}
